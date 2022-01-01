@@ -1,6 +1,9 @@
+use glm::{Vec2, Vector2};
 use glutin::{self, PossiblyCurrent};
 
 use std::ffi::CStr;
+
+use std::collections::HashMap;
 
 pub mod gl {
     pub use self::Gles2 as Gl;
@@ -9,6 +12,7 @@ pub mod gl {
 
 pub struct Gl {
     pub gl: gl::Gl,
+    shader_cache: HashMap<String, u32>
 }
 
 pub fn load(gl_context: &glutin::Context<PossiblyCurrent>) -> Gl {
@@ -34,6 +38,8 @@ pub fn load(gl_context: &glutin::Context<PossiblyCurrent>) -> Gl {
         gl.AttachShader(program, vs);
         gl.AttachShader(program, fs);
         gl.LinkProgram(program);
+        gl.DeleteShader(vs);
+        gl.DeleteShader(fs);
         gl.UseProgram(program);
 
         let mut vb = std::mem::zeroed();
@@ -59,25 +65,65 @@ pub fn load(gl_context: &glutin::Context<PossiblyCurrent>) -> Gl {
             2,
             gl::FLOAT,
             0,
-            5 * std::mem::size_of::<f32>() as gl::types::GLsizei,
+            6 * std::mem::size_of::<f32>() as gl::types::GLsizei,
             std::ptr::null(),
         );
         gl.VertexAttribPointer(
             color_attrib as gl::types::GLuint,
-            3,
+            4,
             gl::FLOAT,
             0,
-            5 * std::mem::size_of::<f32>() as gl::types::GLsizei,
+            6 * std::mem::size_of::<f32>() as gl::types::GLsizei,
             (2 * std::mem::size_of::<f32>()) as *const () as *const _,
         );
         gl.EnableVertexAttribArray(pos_attrib as gl::types::GLuint);
         gl.EnableVertexAttribArray(color_attrib as gl::types::GLuint);
     }
 
-    Gl { gl }
+    Gl { gl , shader_cache: std::collections::HashMap::new()}
 }
 
 impl Gl {
+
+    pub fn init_program(&mut self, name: &str, vs_str:&[u8], fs_str:&[u8]){
+        let program = unsafe {
+            //TODO:: add necessary checking later
+            let vs = self.gl.CreateShader(gl::VERTEX_SHADER);
+            self.gl.ShaderSource(vs, 1, [vs_str.as_ptr() as *const _].as_ptr(), std::ptr::null());
+            self.gl.CompileShader(vs);
+
+            let fs = self.gl.CreateShader(gl::FRAGMENT_SHADER);
+            self.gl.ShaderSource(fs, 1, [fs_str.as_ptr() as *const _].as_ptr(), std::ptr::null());
+            self.gl.CompileShader(fs);
+
+            let program = self.gl.CreateProgram();
+            self.gl.AttachShader(program, vs);
+            self.gl.AttachShader(program, fs);
+            self.gl.LinkProgram(program);
+            self.gl.DeleteShader(vs);
+            self.gl.DeleteShader(fs);
+            program
+        };
+        let prog = self.shader_cache.entry(name.to_string()).or_insert_with(||program).to_owned();
+        self._use_program_impl(prog);
+    }
+
+    fn _use_program_impl(&self, prog:u32){
+        unsafe{
+            self.gl.UseProgram(prog);
+        }
+    }
+
+    pub fn use_program(&self, name: &str){
+        if let Some(&program) = self.shader_cache.get(&name.to_string()){
+            unsafe{
+                self._use_program_impl(program);
+            }
+        }else{
+            println!("No such program named {}", name);
+        }
+    }
+
     pub fn draw_frame(&self, color: [f32; 4]) {
         unsafe {
             self.gl.ClearColor(color[0], color[1], color[2], color[3]);
@@ -85,13 +131,44 @@ impl Gl {
             self.gl.DrawArrays(gl::TRIANGLES, 0, 3);
         }
     }
+
+    pub fn draw_rect(&self, x:i32,y:i32,w:u32,h:u32){
+    }
 }
 
+pub struct DesktopRenderer{
+    render_api: Gl,
+    desktop_size: (Vector2<i32>, Vector2<u32>)
+}
+
+impl DesktopRenderer{
+    fn new(render_api:Gl,desktop_size:(Vector2<i32>, Vector2<u32>))->Self{
+        DesktopRenderer{
+            render_api,
+            desktop_size
+        }
+    }
+
+    fn draw_rect(&self, size:(Vector2<i32>, Vector2<u32>)){
+        // Calc transform
+        self.render_api.draw_rect(size.0.x, size.0.y, size.1.x,size.1.y)
+    }
+}
+
+
 #[rustfmt::skip]
-static VERTEX_DATA: [f32; 15] = [
-    -0.5, -0.5,  1.0,  0.0,  0.0,
-     0.0,  0.5,  0.0,  1.0,  0.0,
-     0.5, -0.5,  0.0,  0.0,  1.0,
+static VERTEX_DATA: [f32; 18] = [
+    -0.5, -0.5,  1.0,  0.0,  0.0, 1.0,
+     0.0,  0.5,  0.0,  1.0,  0.0, 1.0,
+     0.5, -0.5,  0.0,  0.0,  1.0, 1.0
+];
+
+#[rustfmt::skip]
+static RECT_DATA: [f32; 8] = [
+    -1.0, -1.0,
+    1.0, -1.0,
+    1.0, 1.0,
+    -1.0, 1.0
 ];
 
 const VS_SRC: &'static [u8] = b"
@@ -99,12 +176,13 @@ const VS_SRC: &'static [u8] = b"
 precision mediump float;
 
 attribute vec2 position;
-attribute vec3 color;
+attribute vec4 color;
+uniform mat3 trans;
 
-varying vec3 v_color;
+varying vec4 v_color;
 
 void main() {
-    gl_Position = vec4(position, 0.0, 1.0);
+    gl_Position = vec4((trans*vec3(postion, 1.0)).xy, 0.0, 1.0);
     v_color = color;
 }
 \0";
@@ -113,10 +191,10 @@ const FS_SRC: &'static [u8] = b"
 #version 100
 precision mediump float;
 
-varying vec3 v_color;
+varying vec4 v_color;
 
 void main() {
-    gl_FragColor = vec4(v_color, 1.0);
+    gl_FragColor = v_color;
 }
 \0";
 
