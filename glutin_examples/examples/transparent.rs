@@ -82,8 +82,7 @@ pub mod state {
         }
     }
 
-
-    pub fn get_lut()->HashMap<String, VirtualKeyCode>{
+    pub fn get_lut() -> HashMap<String, VirtualKeyCode> {
         let lut = HashMap::from([
             ("Ctrl".to_string(), VirtualKeyCode::LControl),
             ("Alt".to_string(), VirtualKeyCode::LAlt),
@@ -94,36 +93,39 @@ pub mod state {
             ("Key5".to_string(), VirtualKeyCode::Key5),
             ("Key6".to_string(), VirtualKeyCode::Key6),
         ]);
-    lut
+        lut
     }
-    struct ShortcutTriggerBuilder<'a, T, E> {
-        shortcuts: Vec<(String, Box<dyn FnMut() + 'a>)>,
-        lut:HashMap<String, E>,
+    pub struct ShortcutTriggerBuilder<'a, T, E> {
+        shortcuts: Vec<String>,
+        callbacks: Vec<Box<dyn FnMut() + 'a>>,
+        lut: HashMap<String, E>,
         phantom: PhantomData<&'a T>,
     }
 
-    impl<'a, T, E> ShortcutTriggerBuilder<'a, T, E> where E:Event{
-        pub fn new(dict:HashMap<String, E>)->ShortcutTriggerBuilder<'a, T, E>{
-            ShortcutTriggerBuilder{
-                shortcuts:vec![],
-                lut:dict,
-                phantom:PhantomData
+    impl<'a, T, E> ShortcutTriggerBuilder<'a, T, E>
+    where
+        E: Event,
+    {
+        pub fn new(dict: HashMap<String, E>) -> ShortcutTriggerBuilder<'a, T, E> {
+            ShortcutTriggerBuilder {
+                shortcuts: vec![],
+                callbacks: vec![],
+                lut: dict,
+                phantom: PhantomData,
             }
         }
-        fn with_shortcut(mut self, shortcut: String, trigger: Box<dyn FnMut() + 'a>) -> Self {
-            self.shortcuts.push((shortcut, trigger));
+        pub fn with_shortcut(mut self, shortcut: String, trigger: Box<dyn FnMut() + 'a>) -> Self {
+            self.shortcuts.push(shortcut);
+            self.callbacks.push(trigger);
             self
         }
-        fn build(self) -> Result<ShortcutTrigger<'a, String, E>, ()>
+        pub fn build(self) -> Result<ShortcutTrigger<'a, String, E>, ()>
         where
             E: Event,
         {
-            let mut table = TransTable::from([
-                (State::Empty, Inner::<'a, String, E>::new())
-            ]);
-            for shortcut in self.shortcuts {
-                let splits: Vec<_> = shortcut.0.split('+').collect();
-                let cb = shortcut.1;
+            let mut table = TransTable::from([(State::Empty, Inner::<'a, String, E>::new())]);
+            for (shortcut, callback) in self.shortcuts.iter().zip(self.callbacks) {
+                let splits: Vec<_> = shortcut.split('+').collect();
                 let mut trans_pair = Vec::new();
                 let mut unique_state = String::new();
                 for (index, &s) in splits.iter().enumerate() {
@@ -135,24 +137,23 @@ pub mod state {
                         trans_pair.push((trigger, State::State(unique_state.clone()), None));
                     }
                 }
-
+                if let Some(last) = trans_pair.last_mut() {
+                    last.2 = Some(callback);
+                }
 
                 let mut state = State::Empty;
-                for trans in trans_pair{
-                    let f = |e:&mut Inner<'a, String, E>|{
-                        e.insert(trans.0, Trans{state:trans.1.clone(), callback:trans.2});
-                    };
-                    table.entry(state)
-                    .and_modify(|e|f(e))
-                    .or_insert_with(||{
-                        let mut new = Inner::new();
-                        f(&mut new);
-                        new
-                    });
-                    state = trans.1.clone();
+                for (event, s, callback) in trans_pair {
+                    if let Some(e) = table.get_mut(&state) {
+                        e.insert(event, Trans { state: s.clone(), callback });
+                    } else {
+                        let mut new = Inner::<'a, String, E>::new();
+                        new.insert(event, Trans { state: s.clone(), callback });
+                        table.insert(state.clone(), new);
+                    }
+                    state = s.clone();
                 }
             }
-            Ok(ShortcutTrigger { table:table, current_state: State::Empty })
+            Ok(ShortcutTrigger { table, current_state: State::Empty })
         }
     }
 }
@@ -160,6 +161,8 @@ pub mod state {
 #[cfg(test)]
 mod test {
     use super::state::ShortcutTrigger;
+    use crate::state::ShortcutTriggerBuilder;
+    use crate::state::get_lut;
     use crate::state::Event;
     use crate::state::State;
     use crate::state::Trans;
@@ -169,23 +172,18 @@ mod test {
     use std::str::FromStr;
 
     impl Event for VirtualKeyCode {}
-    impl State for String {}
 
     #[test]
     fn state_machine_test() {
-        let table = HashMap::from([(
-            "null".to_owned(),
-            HashMap::from([(
-                VirtualKeyCode::Key0,
-                Trans {
-                    state: "screenshot".to_owned(),
-                    callback: Box::new(|| println!("screenshot")),
-                },
-            )]),
-        )]);
-
-        let mut fa = ShortcutTrigger::new(table, "null".to_owned());
-        fa.trigger(VirtualKeyCode::Key0);
+        let lut = get_lut();
+        let cb = ||println!("trigger!!!!");
+        let mut trigger = ShortcutTriggerBuilder::<(), _>::new(lut)
+        .with_shortcut("Ctrl+Alt+Key1".to_owned(),Box::new(cb))
+        .build()
+        .unwrap();
+        trigger.trigger(VirtualKeyCode::LControl);
+        trigger.trigger(VirtualKeyCode::LAlt);
+        trigger.trigger(VirtualKeyCode::Key1);
     }
 }
 
