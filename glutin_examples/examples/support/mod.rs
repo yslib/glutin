@@ -1,4 +1,4 @@
-use glm::{Vec2, Vector2};
+use glm::{vec3, Vec2, Vector2, ext::translate, Matrix3, transpose};
 use glutin::{self, PossiblyCurrent};
 
 use std::ffi::CStr;
@@ -6,13 +6,13 @@ use std::ffi::CStr;
 use std::collections::HashMap;
 
 pub mod gl {
-    pub use self::Gles2 as Gl;
+    // pub use self::Gl as Gl;
     include!(concat!(env!("OUT_DIR"), "/gl_bindings.rs"));
 }
 
 pub struct Gl {
     pub gl: gl::Gl,
-    shader_cache: HashMap<String, u32>
+    shader_cache: HashMap<String, u32>,
 }
 
 pub fn load(gl_context: &glutin::Context<PossiblyCurrent>) -> Gl {
@@ -47,8 +47,8 @@ pub fn load(gl_context: &glutin::Context<PossiblyCurrent>) -> Gl {
         gl.BindBuffer(gl::ARRAY_BUFFER, vb);
         gl.BufferData(
             gl::ARRAY_BUFFER,
-            (VERTEX_DATA.len() * std::mem::size_of::<f32>()) as gl::types::GLsizeiptr,
-            VERTEX_DATA.as_ptr() as *const _,
+            (RECT_DATA.len() * std::mem::size_of::<f32>()) as gl::types::GLsizeiptr,
+            RECT_DATA.as_ptr() as *const _,
             gl::STATIC_DRAW,
         );
 
@@ -65,27 +65,34 @@ pub fn load(gl_context: &glutin::Context<PossiblyCurrent>) -> Gl {
             2,
             gl::FLOAT,
             0,
-            6 * std::mem::size_of::<f32>() as gl::types::GLsizei,
+            5 * std::mem::size_of::<f32>() as gl::types::GLsizei,
             std::ptr::null(),
         );
         gl.VertexAttribPointer(
             color_attrib as gl::types::GLuint,
-            4,
+            3,
             gl::FLOAT,
             0,
-            6 * std::mem::size_of::<f32>() as gl::types::GLsizei,
+            5 * std::mem::size_of::<f32>() as gl::types::GLsizei,
             (2 * std::mem::size_of::<f32>()) as *const () as *const _,
         );
         gl.EnableVertexAttribArray(pos_attrib as gl::types::GLuint);
         gl.EnableVertexAttribArray(color_attrib as gl::types::GLuint);
+
+        let array = [
+             vec3(0.4, 0.0, 1.0),
+             vec3(0.0, 0.4, 1.0),
+             vec3(0.0, 0.0, 1.0),
+         ];
+         let trans = glm::Matrix3::from_array(&array);
+         gl.ProgramUniformMatrix3fv(program, 0, 1, gl::FALSE, trans.as_array().as_ptr() as *const GLfloat);
     }
 
-    Gl { gl , shader_cache: std::collections::HashMap::new()}
+    Gl { gl, shader_cache: std::collections::HashMap::new() }
 }
 
 impl Gl {
-
-    pub fn init_program(&mut self, name: &str, vs_str:&[u8], fs_str:&[u8]){
+    pub fn init_program(&mut self, name: &str, vs_str: &[u8], fs_str: &[u8]) {
         let program = unsafe {
             //TODO:: add necessary checking later
             let vs = self.gl.CreateShader(gl::VERTEX_SHADER);
@@ -104,101 +111,124 @@ impl Gl {
             self.gl.DeleteShader(fs);
             program
         };
-        let prog = self.shader_cache.entry(name.to_string()).or_insert_with(||program).to_owned();
+        let prog = self.shader_cache.entry(name.to_string()).or_insert_with(|| program).to_owned();
         self._use_program_impl(prog);
     }
 
-    fn _use_program_impl(&self, prog:u32){
-        unsafe{
+    fn _use_program_impl(&self, prog: u32) {
+        unsafe {
             self.gl.UseProgram(prog);
         }
     }
 
-    pub fn use_program(&self, name: &str){
-        if let Some(&program) = self.shader_cache.get(&name.to_string()){
-            unsafe{
-                self._use_program_impl(program);
-            }
-        }else{
+    pub fn use_program(&self, name: &str) {
+        if let Some(&program) = self.shader_cache.get(&name.to_string()) {
+            self._use_program_impl(program);
+        } else {
             println!("No such program named {}", name);
         }
     }
 
+    #[inline(always)]
     pub fn draw_frame(&self, color: [f32; 4]) {
         unsafe {
             self.gl.ClearColor(color[0], color[1], color[2], color[3]);
             self.gl.Clear(gl::COLOR_BUFFER_BIT);
+            self.gl.DrawArrays(gl::TRIANGLE_STRIP, 0, 4);
+        }
+    }
+
+    #[inline(always)]
+    pub fn draw_bg(&self, color: [f32; 4]) {
+        unsafe {
+            self.gl.ClearColor(color[0], color[1], color[2], color[3]);
+            self.gl.Clear(gl::COLOR_BUFFER_BIT);
+        }
+    }
+
+    pub fn update_uniform_mat3(&self,shader: &str, trans:glm::Mat3){
+        unsafe{
+            if let Some(&program) = self.shader_cache.get(shader){
+                self.gl.ProgramUniformMatrix3fv(program, 0, 1, gl::FALSE, trans.as_array().as_ptr() as *const GLfloat);
+            }
+        }
+    }
+
+    #[inline(always)]
+    pub fn draw_rect(&self) {
+        unsafe {
             self.gl.DrawArrays(gl::TRIANGLES, 0, 3);
         }
     }
-
-    pub fn draw_rect(&self, x:i32,y:i32,w:u32,h:u32){
-    }
 }
 
-pub struct DesktopRenderer{
+pub struct DesktopRenderer {
     render_api: Gl,
-    desktop_size: (Vector2<i32>, Vector2<u32>)
+    desktop_size: (Vector2<i32>, Vector2<u32>),
 }
 
-impl DesktopRenderer{
-    fn new(render_api:Gl,desktop_size:(Vector2<i32>, Vector2<u32>))->Self{
-        DesktopRenderer{
-            render_api,
-            desktop_size
-        }
+impl DesktopRenderer {
+    fn new(render_api: Gl, desktop_size: (Vector2<i32>, Vector2<u32>)) -> Self {
+        DesktopRenderer { render_api, desktop_size }
     }
 
-    fn draw_rect(&self, size:(Vector2<i32>, Vector2<u32>)){
+    #[inline(always)]
+    fn draw_bg(&self, color:glm::Vec4){
+        self.render_api.draw_bg(*color.as_array());
+    }
+
+    #[inline(always)]
+    fn draw_rect(&self, size: (Vector2<i32>, Vector2<u32>)) {
         // Calc transform
-        self.render_api.draw_rect(size.0.x, size.0.y, size.1.x,size.1.y)
+        //
+        let transform = glm::Matrix3::from_array(&[
+            vec3(1.0, 1.0, 1.0),
+            vec3(1.0, 1.0, 1.0),
+            vec3(1.0, 1.0, 1.0),
+        ]);
+        self.render_api.draw_rect();
     }
 }
-
 
 #[rustfmt::skip]
-static VERTEX_DATA: [f32; 18] = [
-    -0.5, -0.5,  1.0,  0.0,  0.0, 1.0,
-     0.0,  0.5,  0.0,  1.0,  0.0, 1.0,
-     0.5, -0.5,  0.0,  0.0,  1.0, 1.0
+static VERTEX_DATA: [f32; 15] = [
+    -0.5, -0.5,  1.0,  0.0,  0.0,
+     0.0,  0.5,  0.0,  1.0,  0.0,
+     0.5, -0.5,  0.0,  0.0,  1.0,
 ];
 
-#[rustfmt::skip]
-static RECT_DATA: [f32; 8] = [
-    -1.0, -1.0,
-    1.0, -1.0,
-    1.0, 1.0,
-    -1.0, 1.0
+static RECT_DATA: [f32; 20] = [
+    -1.0, 1.0,  0.1,  0.1,  0.3,
+     1.0, 1.0,  0.1,  0.1,  0.3,
+    -1.0, -1.0,  0.1,  0.1,  0.3,
+     1.0, -1.0,  0.1,  0.1,  0.3,
 ];
 
 const VS_SRC: &'static [u8] = b"
-#version 100
+#version 430 core
 precision mediump float;
-
-attribute vec2 position;
-attribute vec4 color;
-uniform mat3 trans;
-
-varying vec4 v_color;
-
+in vec2 position;
+in vec3 color;
+layout(location=0) uniform mat3 trans;
+out vec3 v_color;
 void main() {
-    gl_Position = vec4((trans*vec3(postion, 1.0)).xy, 0.0, 1.0);
+    gl_Position = vec4((trans*vec3(position, 1.0)).xy,0.0, 1.0);
     v_color = color;
 }
 \0";
 
 const FS_SRC: &'static [u8] = b"
-#version 100
+#version 430 core
 precision mediump float;
-
-varying vec4 v_color;
-
+in vec3 v_color;
 void main() {
-    gl_FragColor = v_color;
+    gl_FragColor = vec4(v_color, 0.1);
 }
 \0";
 
+
 pub use self::context_tracker::{ContextCurrentWrapper, ContextId, ContextTracker, ContextWrapper};
+use self::gl::types::GLfloat;
 
 #[allow(dead_code)] // Not used by all examples
 mod context_tracker {
