@@ -1,45 +1,27 @@
+#![allow(unused)]
 mod support;
-
 use glutin::dpi::{LogicalPosition, LogicalSize, PhysicalSize, Position};
-
 use glutin::event::{Event, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::monitor::MonitorHandle;
-
-use glutin::window::{Fullscreen, WindowBuilder};
-use glutin::ContextBuilder;
+use glutin::window::{Fullscreen, WindowBuilder, Window};
+use glutin::{ContextBuilder, WindowedContext, NotCurrent};
 
 mod misc;
 use misc::shortcutkey::{
     get_lut,
-    Event as TriggerEvent,
     ShortcutTrigger,
     ShortcutTriggerBuilder,
     State,
 };
 
-impl TriggerEvent for VirtualKeyCode {}
+mod app;
 
-#[cfg(test)]
-mod test {
-    use super::TriggerEvent;
-    use super::VirtualKeyCode;
-    use super::ShortcutTriggerBuilder;
-    use super::get_lut;
-    impl TriggerEvent for VirtualKeyCode {}
 
-    #[test]
-    fn state_machine_test() {
-        let lut = get_lut();
-        let cb = || println!("trigger!!!!");
-        let mut trigger = ShortcutTriggerBuilder::<(), _>::new(lut)
-            .with_shortcut("Ctrl+Alt+Key1".to_owned(), Box::new(cb))
-            .build()
-            .unwrap();
-        trigger.trigger(VirtualKeyCode::LControl);
-        trigger.trigger(VirtualKeyCode::LAlt);
-        trigger.trigger(VirtualKeyCode::Key1);
-    }
+struct App<T:'static>{
+    event_loop: EventLoop<T>,
+    windowed_context:WindowedContext<NotCurrent>,
+    render_api:
 }
 
 
@@ -62,18 +44,16 @@ fn main() {
 
     windowed_context.window().set_outer_position(LogicalPosition::new(0, 0));
 
-
-
     println!("Pixel format of the window's GL context: {:?}", windowed_context.get_pixel_format());
 
     let render_api = support::load(&windowed_context.context());
 
     let lut = get_lut();
-    let cb = || println!("set visible");
+    let cb = ||println!("aaaa");
 
     let mut trigger = ShortcutTriggerBuilder::<(), _>::new(lut)
-        .with_shortcut("Ctrl+Alt+Key1".to_owned(), Box::new(cb))
         .with_shortcut("Ctrl+Alt+Key2".to_owned(), Box::new(||println!("set unvisible")))
+        .with_shortcut("Ctrl+Alt+Key1".to_owned(), Box::new(||()))
         .build()
         .unwrap();
 
@@ -89,7 +69,7 @@ fn main() {
                 WindowEvent::KeyboardInput {
                     input: KeyboardInput { virtual_keycode: Some(virtual_code), state, .. },
                     ..
-                }  =>{
+                }=>{
                     match state{
                         glutin::event::ElementState::Pressed=>{
                             if virtual_code == VirtualKeyCode::Escape{

@@ -1,3 +1,4 @@
+#![allow(unused)]
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::marker::PhantomData;
@@ -26,7 +27,7 @@ where
     S: Clone + Hash + Eq,
 {
     pub state: State<S>,
-    pub callback: Option<Box<dyn FnMut() + 'a>>,
+    pub callback: Option<Box<dyn FnMut() + Send + Sync+'a>>,
 }
 
 pub type Inner<'a, S, E> = HashMap<E, Trans<'a, S>>;
@@ -85,7 +86,7 @@ pub fn get_lut() -> HashMap<String, VirtualKeyCode> {
 }
 pub struct ShortcutTriggerBuilder<'a, T, E> {
     shortcuts: Vec<String>,
-    callbacks: Vec<Box<dyn FnMut() + 'a>>,
+    callbacks: Vec<Box<dyn FnMut() +Send+Sync+ 'a>>,
     lut: HashMap<String, E>,
     phantom: PhantomData<&'a T>,
 }
@@ -102,7 +103,7 @@ where
             phantom: PhantomData,
         }
     }
-    pub fn with_shortcut(mut self, shortcut: String, trigger: Box<dyn FnMut() + 'a>) -> Self {
+    pub fn with_shortcut(mut self, shortcut: String, trigger: Box<dyn FnMut() + Send+ Sync + 'a>) -> Self {
         self.shortcuts.push(shortcut);
         self.callbacks.push(trigger);
         self
@@ -142,5 +143,29 @@ where
             }
         }
         Ok(ShortcutTrigger { table, current_state: State::Empty })
+    }
+}
+
+impl Event for VirtualKeyCode {}
+
+#[cfg(test)]
+mod test {
+    use super::Event;
+    use super::VirtualKeyCode;
+    use super::ShortcutTriggerBuilder;
+    use super::get_lut;
+    impl TriggerEvent for VirtualKeyCode {}
+
+    #[test]
+    fn state_machine_test() {
+        let lut = get_lut();
+        let cb = || println!("trigger!!!!");
+        let mut trigger = ShortcutTriggerBuilder::<(), _>::new(lut)
+            .with_shortcut("Ctrl+Alt+Key1".to_owned(), Box::new(cb))
+            .build()
+            .unwrap();
+        trigger.trigger(VirtualKeyCode::LControl);
+        trigger.trigger(VirtualKeyCode::LAlt);
+        trigger.trigger(VirtualKeyCode::Key1);
     }
 }
