@@ -4,35 +4,22 @@ use glutin::dpi::{LogicalPosition, LogicalSize, PhysicalSize, Position};
 use glutin::event::{Event, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::monitor::MonitorHandle;
-use glutin::window::{Fullscreen, WindowBuilder, Window};
-use glutin::{ContextBuilder, WindowedContext, NotCurrent};
+use glutin::window::{Fullscreen, Window, WindowBuilder};
+use glutin::{ContextBuilder, NotCurrent, WindowedContext, ContextWrapper};
 
 mod misc;
-use misc::shortcutkey::{
-    get_lut,
-    ShortcutTrigger,
-    ShortcutTriggerBuilder,
-    State,
-};
+use misc::shortcutkey::{get_lut, ShortcutTrigger, ShortcutTriggerBuilder, State};
 
 mod app;
-
-
-struct App<T:'static>{
-    event_loop: EventLoop<T>,
-    windowed_context:WindowedContext<NotCurrent>,
-    render_api:
-}
+mod window_system;
 
 
 fn main() {
     let el = EventLoop::new();
     let monitor = el.available_monitors().nth(0).expect("Invalid monitor handle");
     let desktop_size = monitor.size();
-    let wb = WindowBuilder::new()
-        .with_decorations(true)
-        .with_transparent(true);
-        //.with_fullscreen(Some(Fullscreen::Borderless(Some(monitor))));
+    let wb = WindowBuilder::new().with_decorations(true).with_transparent(true);
+    //.with_fullscreen(Some(Fullscreen::Borderless(Some(monitor))));
     //
 
     let windowed_context = ContextBuilder::new()
@@ -49,11 +36,11 @@ fn main() {
     let render_api = support::load(&windowed_context.context());
 
     let lut = get_lut();
-    let cb = ||println!("aaaa");
+    let cb = || println!("aaaa");
 
     let mut trigger = ShortcutTriggerBuilder::<(), _>::new(lut)
-        .with_shortcut("Ctrl+Alt+Key2".to_owned(), Box::new(||println!("set unvisible")))
-        .with_shortcut("Ctrl+Alt+Key1".to_owned(), Box::new(||()))
+        .with_shortcut("Ctrl+Alt+Key2".to_owned(), Box::new(|| println!("set unvisible")))
+        .with_shortcut("Ctrl+Alt+Key1".to_owned(), Box::new(|| ()))
         .build()
         .unwrap();
 
@@ -69,18 +56,16 @@ fn main() {
                 WindowEvent::KeyboardInput {
                     input: KeyboardInput { virtual_keycode: Some(virtual_code), state, .. },
                     ..
-                }=>{
-                    match state{
-                        glutin::event::ElementState::Pressed=>{
-                            if virtual_code == VirtualKeyCode::Escape{
-                                *control_flow = ControlFlow::Exit;
-                            }else{
-                                trigger.trigger(virtual_code);
-                            }
-                        },
-                        _=>()
+                } => match state {
+                    glutin::event::ElementState::Pressed => {
+                        if virtual_code == VirtualKeyCode::Escape {
+                            *control_flow = ControlFlow::Exit;
+                        } else {
+                            trigger.trigger(virtual_code);
+                        }
                     }
-                }
+                    _ => (),
+                },
                 _ => (),
             },
             Event::RedrawRequested(_) => {

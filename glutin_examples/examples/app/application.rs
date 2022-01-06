@@ -6,6 +6,12 @@ use glutin::window::{Fullscreen, WindowBuilder};
 use glutin::ContextBuilder;
 
 use crate::misc::shortcutkey::ShortcutTrigger;
-pub struct Application<'a>{
-	shortcut_key_trigger:ShortcutTrigger<'a, String, VirtualKeyCode>
+
+pub trait EventListener{
+
 }
+pub struct Application<'a, E:EventListener>{
+	shortcut_key_trigger:ShortcutTrigger<'a, String, VirtualKeyCode>,
+	listener:E,
+}
+
