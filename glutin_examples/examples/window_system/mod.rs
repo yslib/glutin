@@ -1,6 +1,6 @@
 
 
-mod glutin;
+pub mod glutin;
 
 use super::app::application::Application;
 
