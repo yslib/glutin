@@ -1,20 +1,19 @@
 #![allow(unused)]
-mod support;
-use app::application::Application;
-use glutin::dpi::{LogicalPosition, LogicalSize, PhysicalSize, Position};
-use glutin::event::{Event, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent};
-use glutin::event_loop::{ControlFlow, EventLoop};
-use glutin::monitor::MonitorHandle;
-use glutin::window::{Fullscreen, Window, WindowBuilder};
-use glutin::{ContextBuilder, ContextWrapper, NotCurrent, WindowedContext};
-
-mod misc;
-use misc::shortcutkey::{get_lut, ShortcutTrigger, ShortcutTriggerBuilder, State};
 
 mod app;
+use app::application::{Application, ApplicationBuilder};
+
 mod window_system;
 use window_system::{glutin::GlutinSystem, WindowSystem};
 
+mod misc;
+mod support;
+
+
 fn main() {
-    window_system::glutin::GlutinSystem::new().run(Application::new());
+    let window_system = GlutinSystem::new();
+    ApplicationBuilder::new()
+    .with_window_system(window_system)
+    .with_name("shortcut".to_owned())
+    .exec()
 }

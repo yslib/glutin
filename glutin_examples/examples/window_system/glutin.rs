@@ -6,6 +6,8 @@ use crate::support;
 
 use crate::misc::KeyCode;
 
+use crate::app::graphics_impl::opengl_impl::{GraphicsOpenGLImpl};
+
 use glutin::dpi::{LogicalPosition, LogicalSize, PhysicalSize, Position};
 use glutin::event::{Event, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop};
@@ -60,10 +62,12 @@ impl WindowSystem for GlutinSystem{
 
     	println!("Pixel format of the window's GL context: {:?}", windowed_context.get_pixel_format());
 
+
     	let render_api = support::load(&windowed_context.context());
 
-		self.el.run(move|event,_,control_flow|{
+		let graphics = GraphicsOpenGLImpl::new(render_api, (desktop_size.width, desktop_size.height));
 
+		self.el.run(move|event,_,control_flow|{
 			*control_flow = ControlFlow::Wait;
 			//
 			match event {
@@ -88,7 +92,8 @@ impl WindowSystem for GlutinSystem{
 					_ => (),
 				},
 				Event::RedrawRequested(_) => {
-					render_api.draw_frame([0.0, 0.0, 0.0, 0.0]);
+					// render_api.draw_frame([0.0, 0.0, 0.0, 0.0]);
+					app.on_draw(&graphics);
 					windowed_context.swap_buffers().unwrap();
 					println!("present");
 				}
@@ -97,4 +102,5 @@ impl WindowSystem for GlutinSystem{
 
 		});
 	}
+
 }
