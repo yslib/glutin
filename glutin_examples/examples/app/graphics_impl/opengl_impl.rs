@@ -5,8 +5,8 @@ use crate::support::Gl;
 
 use crate::app::graphics::Graphics;
 pub struct GraphicsOpenGLImpl {
-    render_api: Gl,
-    desktop_size: (u32, u32)
+    pub render_api: Gl,
+    pub desktop_size: (u32, u32)
 }
 
 impl GraphicsOpenGLImpl{

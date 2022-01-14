@@ -62,7 +62,6 @@ impl WindowSystem for GlutinSystem{
 
     	println!("Pixel format of the window's GL context: {:?}", windowed_context.get_pixel_format());
 
-
     	let render_api = support::load(&windowed_context.context());
 
 		let graphics = GraphicsOpenGLImpl::new(render_api, (desktop_size.width, desktop_size.height));
@@ -75,7 +74,7 @@ impl WindowSystem for GlutinSystem{
 				Event::WindowEvent { event, .. } => match event {
 					WindowEvent::Resized(physical_size) => windowed_context.resize(physical_size),
 					WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-					WindowEvent::MouseInput { button, .. } => {}
+					WindowEvent::MouseInput { button, .. } => {},
 					WindowEvent::KeyboardInput {
 						input: KeyboardInput { virtual_keycode: Some(virtual_code), state, .. },
 						..
