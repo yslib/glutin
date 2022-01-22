@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use glutin::dpi::{LogicalPosition, LogicalSize, PhysicalSize, Position};
-use glutin::event::{Event, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent};
+use glutin::event::{Event, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent, ModifiersState};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::monitor::MonitorHandle;
 use glutin::window::{Fullscreen, WindowBuilder};
@@ -79,10 +79,14 @@ impl Application {
         self.key_trigger = Some(std::cell::RefCell::new(key_trigger));
     }
 
-    pub fn on_keyboard_event(&self, input: KeyCode) {
+    pub fn on_keyboard_event(&self, input: VirtualKeyCode){
         if let Some(trigger) = self.key_trigger.as_ref() {
-            trigger.borrow_mut().trigger(input);
+            // trigger.borrow_mut().trigger(input);
         }
+    }
+
+    pub fn on_modifier_state_changed(&self, modifier:ModifiersState){
+
     }
 
 	pub fn on_static_capture_active(&self){

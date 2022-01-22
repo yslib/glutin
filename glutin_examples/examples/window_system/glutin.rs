@@ -75,6 +75,9 @@ impl WindowSystem for GlutinSystem{
 					WindowEvent::Resized(physical_size) => windowed_context.resize(physical_size),
 					WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
 					WindowEvent::MouseInput { button, .. } => {},
+					WindowEvent::ModifiersChanged(modifier)=>{
+						app.on_modifier_state_changed(modifier);
+					},
 					WindowEvent::KeyboardInput {
 						input: KeyboardInput { virtual_keycode: Some(virtual_code), state, .. },
 						..
@@ -83,12 +86,15 @@ impl WindowSystem for GlutinSystem{
 							if virtual_code == VirtualKeyCode::Escape {
 								*control_flow = ControlFlow::Exit;
 							} else {
-								app.on_keyboard_event(translate_keycode(virtual_code).unwrap());
+								app.on_keyboard_event(virtual_code, );
 							}
 						}
 						_ => (),
 					},
 					_ => (),
+				},
+				Event::UserEvent(())=>{
+
 				},
 				Event::RedrawRequested(_) => {
 					// render_api.draw_frame([0.0, 0.0, 0.0, 0.0]);
