@@ -1,15 +1,5 @@
 use bitflags::bitflags;
-
-use crate::misc::KeyCode;
-
-bitflags! {
-    struct Modifiers:u32{
-        const CTRL = 0b100;
-        const ALT = 0b100 << 3;
-        const SHIFT = 0b100 << 6;
-        const LOGO = 0b100<<9;
-    }
-}
+use glutin::event::ModifiersState;
 pub trait Execute<A:ActionContext>{
     fn execute(self, ctx: &mut A);
 }
@@ -39,6 +29,6 @@ pub trait ActionContext{
 
 pub struct KeyBinding<T:Eq>{
     action:Action,
-    mods :Modifiers,
+    mods :ModifiersState,
     key: T,
 }

@@ -1,33 +1,29 @@
 use std::path::PathBuf;
 
 use glutin::dpi::{LogicalPosition, LogicalSize, PhysicalSize, Position};
-use glutin::event::{Event, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent, ModifiersState};
+use glutin::event::{
+    ElementState, Event, KeyboardInput, ModifiersState, MouseButton, VirtualKeyCode, WindowEvent,
+};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::monitor::MonitorHandle;
 use glutin::window::{Fullscreen, WindowBuilder};
 use glutin::ContextBuilder;
+use raw_window_handle::RawWindowHandle;
 
 use crate::misc::shortcutkey::{get_lut, ShortcutTrigger, ShortcutTriggerBuilder, State};
-use crate::misc::KeyCode;
-use crate::window_system::{NativeWindowHandle, Win32Handle, WindowSystem};
 
 use super::graphics::Graphics;
 
-pub struct ApplicationBuilder<W: WindowSystem> {
+pub struct ApplicationBuilder {
     app_name: String,
     config_file_path: PathBuf,
-    window_system: Option<W>,
 }
 
-impl<W> ApplicationBuilder<W>
-where
-    W: WindowSystem,
-{
+impl ApplicationBuilder {
     pub fn new() -> Self {
         ApplicationBuilder {
             app_name: "".to_owned(),
             config_file_path: PathBuf::from("".to_owned()),
-            window_system: None,
         }
     }
 
@@ -41,20 +37,27 @@ where
         self
     }
 
-    pub fn with_window_system(mut self, window_system: W) -> Self {
-        self.window_system = Some(window_system);
-        self
-    }
-
-    pub fn exec(self) -> ! {
-        let app = Application { key_trigger: None, name: self.app_name.clone() };
-        self.window_system.unwrap().run(app)
+    pub fn build(self) -> Result<Application, ()> {
+        let app = Application {
+            name: self.app_name.clone(),
+            mods: ModifiersState::empty(),
+            mouse_state: ElementState::Released,
+            mouse_begin: From::from((0, 0)),
+            mouse_pos: From::from((0, 0)),
+            mouse_prev_pos:From::from((0, 0))
+        };
+        Ok(app)
     }
 }
 
-pub struct Application{
-    key_trigger: Option<std::cell::RefCell<ShortcutTrigger<String, KeyCode>>>,
+pub struct Application {
     name: String,
+
+    pub mods: ModifiersState,
+    pub mouse_state: ElementState,
+    pub mouse_pos: LogicalPosition<i32>,
+    pub mouse_begin: LogicalPosition<i32>,
+    pub mouse_prev_pos: LogicalPosition<i32>
 }
 
 struct AppData {}
@@ -65,38 +68,31 @@ pub trait CaptureDeviceContext {
     fn capture(&self) -> Image;
 }
 
-unsafe impl Send for Application{}
-unsafe impl Sync for Application{}
+unsafe impl Send for Application {}
+unsafe impl Sync for Application {}
 
 impl Application {
-    pub fn on_init(&mut self, native_window: NativeWindowHandle) {
-        let lut = get_lut();
-        let mut key_trigger = ShortcutTriggerBuilder::new(lut)
-            .with_shortcut("Ctrl+Alt+Key2".to_owned(), Box::new(|| println!("set unvisible")))
-            .with_shortcut("Ctrl+Alt+Key1".to_owned(), Box::new(|| ()))
-            .build()
-            .unwrap();
-        self.key_trigger = Some(std::cell::RefCell::new(key_trigger));
+    pub fn on_init(&mut self, native_window: RawWindowHandle) {
+        //
+        //
     }
 
-    pub fn on_keyboard_event(&self, input: VirtualKeyCode){
-        if let Some(trigger) = self.key_trigger.as_ref() {
-            // trigger.borrow_mut().trigger(input);
-        }
+    pub fn handle_keyboard_event(&self, input: KeyboardInput) {}
+
+    pub fn handle_mouse_event(&self, event: WindowEvent) {
+        println!("handle_mouse_event: {:?}", event);
     }
 
-    pub fn on_modifier_state_changed(&self, modifier:ModifiersState){
+    pub fn mouse_press_event(&self) {}
 
+    pub fn on_modifier_state_changed(&mut self, modifier: ModifiersState) {
+        self.mods = modifier;
     }
-
-	pub fn on_static_capture_active(&self){
-
-	}
 
     pub fn on_update(&self) {}
 
     pub fn on_draw(&self, graphics: &dyn Graphics) {
-        graphics.draw_region(100, 100, 100, 100);
+        graphics.draw_rect(100, 100, 100, 100);
     }
 
     pub fn on_app_close(&self) {}

@@ -3,8 +3,7 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::marker::PhantomData;
 
-use super::KeyCode;
-
+use glutin::event::VirtualKeyCode;
 
 #[derive(Clone, Hash, PartialEq, Eq, Debug)]
 pub enum State<T>
@@ -72,16 +71,16 @@ where
     }
 }
 
-pub fn get_lut() -> HashMap<String, KeyCode> {
+pub fn get_lut() -> HashMap<String, VirtualKeyCode> {
     let lut = HashMap::from([
-        ("Ctrl".to_string(), KeyCode::LControl),
-        ("Alt".to_string(), KeyCode::LAlt),
-        ("Key1".to_string(), KeyCode::Key1),
-        ("Key2".to_string(), KeyCode::Key2),
-        ("Key3".to_string(), KeyCode::Key3),
-        ("Key4".to_string(), KeyCode::Key4),
-        ("Key5".to_string(), KeyCode::Key5),
-        ("Key6".to_string(), KeyCode::Key6),
+        ("Ctrl".to_string(), VirtualKeyCode::LControl),
+        ("Alt".to_string(), VirtualKeyCode::LAlt),
+        ("Key1".to_string(), VirtualKeyCode::Key1),
+        ("Key2".to_string(), VirtualKeyCode::Key2),
+        ("Key3".to_string(), VirtualKeyCode::Key3),
+        ("Key4".to_string(), VirtualKeyCode::Key4),
+        ("Key5".to_string(), VirtualKeyCode::Key5),
+        ("Key6".to_string(), VirtualKeyCode::Key6),
     ]);
     lut
 }
@@ -145,12 +144,10 @@ where
     }
 }
 
-impl Event for KeyCode {}
-
+impl Event for VirtualKeyCode {}
 #[cfg(test)]
 mod test {
     use super::Event;
-    use super::KeyCode;
     use super::ShortcutTriggerBuilder;
     use super::get_lut;
 
