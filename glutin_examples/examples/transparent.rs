@@ -1,56 +1,38 @@
 #![allow(unused)]
-
 mod app;
-use app::action;
-use app::application::{Application, ApplicationBuilder};
+
+use app::{
+    action,
+    application::{Application, ApplicationBuilder},
+    canvas::Canvas,
+};
 
 mod misc;
-mod support;
 
-use glutin::dpi::{LogicalPosition, LogicalSize, PhysicalSize, Position};
-use glutin::event::{ElementState, Event, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent};
-use glutin::event_loop::{ControlFlow, EventLoop};
-use glutin::monitor::MonitorHandle;
-use glutin::platform::ContextTraitExt;
-use glutin::window::{Fullscreen, Window, WindowBuilder, *};
-use glutin::{ContextBuilder, ContextWrapper, NotCurrent, WindowedContext};
+use glutin::{
+    dpi::{LogicalPosition, LogicalSize, PhysicalSize, Position},
+    event::{
+        ElementState, Event, KeyboardInput, ModifiersState, MouseButton, VirtualKeyCode,
+        WindowEvent,
+    },
+    event_loop::{ControlFlow, EventLoop},
+    monitor::MonitorHandle,
+    platform::run_return::EventLoopExtRunReturn,
+    window::{Fullscreen, Window, WindowBuilder},
+    ContextBuilder, ContextWrapper, NotCurrent, WindowedContext,
+};
 
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle, Win32Handle};
-
-use crate::app::graphics_impl::opengl_impl::GraphicsOpenGLImpl;
 
 use windows::{
     core::*, Data::Xml::Dom::*, Win32::Foundation::*, Win32::System::Threading::*,
     Win32::UI::WindowsAndMessaging::*,
 };
 
-use app::graphics::Graphics;
-
-struct Bound2 {
-    pub min: (i32, i32),
-    pub max: (i32, i32),
-}
-
-impl Bound2 {
-    fn new(p1: (i32, i32), p2: (i32, i32)) -> Self {
-        Bound2 {
-            min: (std::cmp::min(p1.0, p2.0), std::cmp::min(p1.1, p2.1)),
-            max: (std::cmp::max(p1.0, p2.0), std::cmp::max(p1.1, p2.1)),
-        }
-    }
-
-    fn rect(&self) -> (i32, i32, u32, u32) {
-        let min = self.min;
-        let max = self.max;
-        (min.0, min.1, (max.0 - min.0) as u32, (max.1 - min.1) as u32)
-    }
-}
-
-fn main_loop(app: Application) -> ! {
-    let el = EventLoop::new();
-    let mut app = app;
+fn main_loop() {
+    let mut el = EventLoop::new();
     let monitor = el.available_monitors().nth(0).expect("Invalid monitor handle");
-    let desktop_size = monitor.size();
+
     let wb = WindowBuilder::new()
         .with_decorations(false)
         .with_transparent(true)
@@ -80,11 +62,13 @@ fn main_loop(app: Application) -> ! {
         }
     }
 
-    let graphics =
-        GraphicsOpenGLImpl::new((desktop_size.width, desktop_size.height), &windowed_context);
+    let app = ApplicationBuilder::new().with_name("EasyCapture".to_owned()).build().unwrap();
+
+    // init canvas
+    let canvas = Canvas::new(&windowed_context, monitor);
 
     app.on_init(windowed_context.window().raw_window_handle());
-    el.run(move |event, _, control_flow| {
+    el.run_return(|event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
         //
         match event {
@@ -116,15 +100,9 @@ fn main_loop(app: Application) -> ! {
             },
             Event::UserEvent(()) => {}
             Event::RedrawRequested(_) => {
-                // graphics.clear((0f32, 0f32, 0f32, 0.1f32));
-                // graphics.draw_region(100, 100, 100, 100);
                 println!("{:?}", app.mouse_begin);
                 if app.mouse_state == ElementState::Pressed {
-                    let rect =
-                        Bound2::new(From::from(app.mouse_begin), From::from(app.mouse_pos)).rect();
-                    graphics.clear((0.0, 0.0, 0.0, 0.0));
-                    graphics.draw_rect(rect.0, rect.1, rect.2, rect.3);
-                    windowed_context.swap_buffers().unwrap();
+                    canvas.on_draw();
                 }
             }
             _ => (),
@@ -133,7 +111,5 @@ fn main_loop(app: Application) -> ! {
 }
 
 fn main() {
-    let app = ApplicationBuilder::new().with_name("EasyCapture".to_owned()).build().unwrap();
-
-    main_loop(app);
+    main_loop();
 }

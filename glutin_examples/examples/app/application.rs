@@ -1,17 +1,17 @@
 use std::path::PathBuf;
+use std::rc::Rc;
 
-use glutin::dpi::{LogicalPosition, LogicalSize, PhysicalSize, Position};
-use glutin::event::{
-    ElementState, Event, KeyboardInput, ModifiersState, MouseButton, VirtualKeyCode, WindowEvent,
+use glutin::{
+    dpi::{LogicalPosition, LogicalSize, PhysicalSize, Position},
+    event::{
+        ElementState, Event, KeyboardInput, ModifiersState, MouseButton, VirtualKeyCode,
+        WindowEvent,
+    }, ContextWrapper, PossiblyCurrent,
+    window::{Fullscreen, Window, WindowBuilder}, monitor::MonitorHandle,
 };
-use glutin::event_loop::{ControlFlow, EventLoop};
-use glutin::monitor::MonitorHandle;
-use glutin::window::{Fullscreen, WindowBuilder};
-use glutin::ContextBuilder;
 use raw_window_handle::RawWindowHandle;
 
-use crate::misc::shortcutkey::{get_lut, ShortcutTrigger, ShortcutTriggerBuilder, State};
-
+use super::canvas::RegionSelector;
 use super::graphics::Graphics;
 
 pub struct ApplicationBuilder {
@@ -44,7 +44,7 @@ impl ApplicationBuilder {
             mouse_state: ElementState::Released,
             mouse_begin: From::from((0, 0)),
             mouse_pos: From::from((0, 0)),
-            mouse_prev_pos:From::from((0, 0))
+            mouse_prev_pos: From::from((0, 0)),
         };
         Ok(app)
     }
@@ -57,7 +57,9 @@ pub struct Application {
     pub mouse_state: ElementState,
     pub mouse_pos: LogicalPosition<i32>,
     pub mouse_begin: LogicalPosition<i32>,
-    pub mouse_prev_pos: LogicalPosition<i32>
+    pub mouse_prev_pos: LogicalPosition<i32>,
+
+    pub region_selector: Rc<RegionSelector>,
 }
 
 struct AppData {}
@@ -83,6 +85,10 @@ impl Application {
         println!("handle_mouse_event: {:?}", event);
     }
 
+    pub fn handle_redraw_event(&self){
+
+    }
+
     pub fn mouse_press_event(&self) {}
 
     pub fn on_modifier_state_changed(&mut self, modifier: ModifiersState) {
@@ -91,9 +97,5 @@ impl Application {
 
     pub fn on_update(&self) {}
 
-    pub fn on_draw(&self, graphics: &dyn Graphics) {
-        graphics.draw_rect(100, 100, 100, 100);
-    }
 
-    pub fn on_app_close(&self) {}
 }
