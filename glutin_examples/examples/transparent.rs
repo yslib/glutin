@@ -49,11 +49,13 @@ impl Bound2 {
 fn main_loop(app: Application) -> ! {
     let el = EventLoop::new();
     let mut app = app;
-    let monitor = el.available_monitors().nth(1).expect("Invalid monitor handle");
+    let monitor = el.available_monitors().nth(0).expect("Invalid monitor handle");
     let desktop_size = monitor.size();
-    let wb =
-        WindowBuilder::new().with_decorations(false).with_transparent(true).with_maximized(true);
-    //.with_always_on_top(true);
+    let wb = WindowBuilder::new()
+        .with_decorations(false)
+        .with_transparent(true)
+        .with_maximized(true)
+        .with_always_on_top(false);
 
     let windowed_context = ContextBuilder::new()
         .with_gl_profile(glutin::GlProfile::Core)
@@ -78,7 +80,8 @@ fn main_loop(app: Application) -> ! {
         }
     }
 
-    let graphics = GraphicsOpenGLImpl::new((desktop_size.width, desktop_size.height), &windowed_context);
+    let graphics =
+        GraphicsOpenGLImpl::new((desktop_size.width, desktop_size.height), &windowed_context);
 
     app.on_init(windowed_context.window().raw_window_handle());
     el.run(move |event, _, control_flow| {
@@ -105,7 +108,7 @@ fn main_loop(app: Application) -> ! {
                 }
                 WindowEvent::MouseInput { state, button, .. } => {
                     app.mouse_state = state;
-                    if state == ElementState::Pressed{
+                    if state == ElementState::Pressed {
                         app.mouse_begin = app.mouse_prev_pos;
                     }
                 }
@@ -119,8 +122,8 @@ fn main_loop(app: Application) -> ! {
                 if app.mouse_state == ElementState::Pressed {
                     let rect =
                         Bound2::new(From::from(app.mouse_begin), From::from(app.mouse_pos)).rect();
-                    graphics.clear((0.0,0.0,0.0,0.0));
-                    graphics.draw_rect(rect.0,rect.1,rect.2,rect.3);
+                    graphics.clear((0.0, 0.0, 0.0, 0.0));
+                    graphics.draw_rect(rect.0, rect.1, rect.2, rect.3);
                     windowed_context.swap_buffers().unwrap();
                 }
             }

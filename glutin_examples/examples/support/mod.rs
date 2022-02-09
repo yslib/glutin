@@ -3,7 +3,6 @@ use glutin::{self, PossiblyCurrent};
 
 use std::ffi::CStr;
 
-use std::collections::HashMap;
 
 pub mod gl {
     // pub use self::Gl as Gl;
@@ -11,11 +10,10 @@ pub mod gl {
 }
 
 pub struct Gl {
-    pub gl: gl::Gl,
+    pub gl: self::gl::Gl,
     pub program: u32,
-    pub rect_vbo: u32
+    pub rect_vbo: u32,
     pub rect_vao: u32
-
 }
 
 pub fn load(gl_context: &glutin::Context<PossiblyCurrent>) -> Gl {
@@ -87,7 +85,7 @@ pub fn load(gl_context: &glutin::Context<PossiblyCurrent>) -> Gl {
         gl.EnableVertexAttribArray(pos_attrib as gl::types::GLuint);
         gl.EnableVertexAttribArray(color_attrib as gl::types::GLuint);
 
-        let array = [vec3(0.4, 0.0, 1.0), vec3(0.0, 0.4, 1.0), vec3(0.0, 0.0, 1.0)];
+        let array = [vec3(1.0, 0.0, 1.0), vec3(0.0, 1.0, 1.0), vec3(0.0, 0.0, 1.0)];
         let trans = glm::Matrix3::from_array(&array);
         gl.ProgramUniformMatrix3fv(
             program,
@@ -138,7 +136,7 @@ impl Gl {
                 vertices.as_ptr() as *const _,
                 gl::STATIC_DRAW,
             );
-            self.draw_rect();
+            self.draw_frame();
         }
     }
 

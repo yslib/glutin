@@ -150,6 +150,7 @@ mod test {
     use super::Event;
     use super::ShortcutTriggerBuilder;
     use super::get_lut;
+    use super::VirtualKeyCode;
 
     #[test]
     fn state_machine_test() {
@@ -159,8 +160,8 @@ mod test {
             .with_shortcut("Ctrl+Alt+Key1".to_owned(), Box::new(cb))
             .build()
             .unwrap();
-        trigger.trigger(KeyCode::LControl);
-        trigger.trigger(KeyCode::LAlt);
-        trigger.trigger(KeyCode::Key1);
+        trigger.trigger(VirtualKeyCode::LControl);
+        trigger.trigger(VirtualKeyCode::LAlt);
+        trigger.trigger(VirtualKeyCode::Key1);
     }
 }
