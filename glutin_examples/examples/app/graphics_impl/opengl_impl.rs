@@ -3,23 +3,15 @@ use crate::support::{self, Gl};
 
 use glm::{length, vec3, Matrix3};
 
-use glutin::{window::Window, ContextWrapper, PossiblyCurrent};
+use glutin::ContextWrapper;
+use glutin::{window::Window, PossiblyCurrent,Context};
 use windows::Win32::UI::WindowsAndMessaging::ARW_BOTTOMLEFT;
 
 use std::{cell::RefCell, ops::Mul};
 
-pub struct GraphicsOpenGLImpl<'a> {
+pub struct GraphicsOpenGLImpl {
     pub render_api: RefCell<Gl>,
     pub desktop_size: (u32, u32),
-    pub gl_context: &'a ContextWrapper<PossiblyCurrent, Window>,
-}
-
-impl<'a> GraphicsOpenGLImpl<'a> {
-    pub fn new(desktop_size: (u32, u32), gl_context: &glutin::Context<PossiblyCurrent>) -> Self {
-        // init shaders
-        let render_api = support::load(gl_context);
-        GraphicsOpenGLImpl { render_api: RefCell::new(render_api), desktop_size, gl_context }
-    }
 }
 
 ///
@@ -47,7 +39,7 @@ mod opengl_backend_test {
     }
 }
 
-impl<'a> Graphics for GraphicsOpenGLImpl<'a> {
+impl Graphics for GraphicsOpenGLImpl {
     #[inline(always)]
     fn draw_rect(&self, x: i32, y: i32, w: u32, h: u32) {
         // Calc transform
@@ -96,9 +88,5 @@ impl<'a> Graphics for GraphicsOpenGLImpl<'a> {
 
     fn clear(&self, color: (f32, f32, f32, f32)) {
         self.render_api.borrow().clear([color.0, color.1, color.2, color.3]);
-    }
-
-    fn submit(&self) {
-        self.gl_context.swap_buffers().unwrap();
     }
 }

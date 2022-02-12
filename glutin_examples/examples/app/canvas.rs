@@ -1,9 +1,8 @@
-use crate::Graphics;
+use crate::app::graphics::Graphics;
 use glm::vec2;
 use glutin::{monitor::MonitorHandle, window, window::Window, ContextWrapper, PossiblyCurrent};
 use std::rc::Rc;
 
-use super::graphics_impl::opengl_impl::GraphicsOpenGLImpl;
 
 struct Bound2 {
     pub min: (i32, i32),
@@ -25,8 +24,14 @@ impl Bound2 {
     }
 }
 
+impl Default for Bound2{
+    fn default()->Self{
+        Bound2 { min: (0, 0), max: (-1,-1) }
+    }
+}
+
 pub trait Renderable {
-    fn update(&self, graphics: &Graphics);
+    fn update(&self, graphics: &dyn Graphics);
 }
 
 pub struct RegionSelector {
@@ -35,30 +40,18 @@ pub struct RegionSelector {
 }
 
 impl Renderable for RegionSelector {
-    fn update(&self, graphics: &Graphics) {
+    fn update(&self, graphics: &dyn Graphics) {
         let rect = self.bound.rect();
         graphics.draw_rect(rect.0, rect.1, rect.2, rect.3);
     }
 }
 
-pub struct Canvas<'a> {
-    objects: Vec<Rc<dyn Renderable>>,
-    graphics: Box<dyn Graphics>,
+pub struct Canvas {
+    pub objects: Vec<Rc<dyn Renderable>>,
+    pub graphics: Box<dyn Graphics>,
 }
 
-impl<'a> Canvas<'a> {
-    pub fn new(
-        gl_context: &'a ContextWrapper<PossiblyCurrent, Window>,
-        primary_monior: MonitorHandle,
-    ) -> Self {
-        let desktop_size = primary_monior.size();
-
-        let graphics =
-            GraphicsOpenGLImpl::new((desktop_size.width, desktop_size.height), gl_context);
-
-        Canvas { objects: vec![], graphics: Box::new(graphics)}
-    }
-
+impl Canvas {
     pub fn add_object(&mut self, object: Rc<dyn Renderable>) {
         self.objects.push(object);
     }
@@ -68,6 +61,5 @@ impl<'a> Canvas<'a> {
         for obj in &self.objects {
             obj.update(&(*self.graphics));
         }
-		self.graphics.submit();
     }
 }

@@ -5,3 +5,5 @@ pub mod canvas;
 pub mod graphics_impl;
 pub mod graphics;
 pub mod action;
+pub mod window;
+pub mod event;
