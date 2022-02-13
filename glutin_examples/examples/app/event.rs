@@ -1,34 +1,47 @@
 use glutin::{
-    dpi::{PhysicalPosition, LogicalPosition},
-    event::{KeyboardInput, WindowEvent, ElementState, MouseButton, VirtualKeyCode},
+    dpi::{LogicalPosition, PhysicalPosition},
+    event::{ElementState, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent},
 };
 
+use super::{action::Action, window::WindowId};
+
 #[derive(Debug)]
-pub struct MouseData{
-	pub button: MouseButton,
-	pub position: PhysicalPosition<f64>,
+pub struct MouseData {
+    pub button: MouseButton,
+    pub position: PhysicalPosition<f64>,
 }
 
 #[derive(Debug)]
-pub struct KeyInputData{
-	pub virtual_keycode:VirtualKeyCode,
+pub struct KeyInputData {
+    pub virtual_keycode: VirtualKeyCode,
 }
 
-
-#[derive(Debug)]
-pub enum UserEvent{
-	InvokeRegionSelector
+#[derive(Debug, Clone, Copy)]
+pub enum Event {
+    InvokeRegionSelector,
+    DoAction(Action),
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct UserEvent {
+    pub window_id: Option<WindowId>,
+    pub event: Event,
+}
+
+impl UserEvent {
+    pub fn new(window_id: Option<WindowId>, event: Event) -> Self {
+        Self { window_id, event }
+    }
+}
 
 pub trait WindowEventHandler<T> {
-	fn on_mouse_press_event(&self, data: &MouseData);
+    fn on_mouse_press_event(&mut self, data: &MouseData);
 
-	fn on_mouse_release_event(&self, data: &MouseData);
+    fn on_mouse_release_event(&mut self, data: &MouseData);
 
-	fn on_mouse_move_event(&self, data: &MouseData);
+    fn on_mouse_move_event(&mut self, data: &MouseData);
 
-	fn on_keyboard_event(&self, data: &KeyInputData);
+    fn on_keyboard_event(&mut self, data: &KeyInputData);
 
-	fn on_user_event(&self, data: &T);
+    fn on_user_event(&mut self, data: &T);
 }

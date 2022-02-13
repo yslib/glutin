@@ -3,7 +3,6 @@ use glutin::{self, PossiblyCurrent};
 
 use std::ffi::CStr;
 
-
 pub mod gl {
     // pub use self::Gl as Gl;
     include!(concat!(env!("OUT_DIR"), "/gl_bindings.rs"));
@@ -13,7 +12,7 @@ pub struct Gl {
     pub gl: self::gl::Gl,
     pub program: u32,
     pub rect_vbo: u32,
-    pub rect_vao: u32
+    pub rect_vao: u32,
 }
 
 pub fn load(gl_context: &glutin::Context<PossiblyCurrent>) -> Gl {
@@ -60,7 +59,7 @@ pub fn load(gl_context: &glutin::Context<PossiblyCurrent>) -> Gl {
             gl.GenVertexArrays(1, &mut vao);
             gl.BindVertexArray(vao);
             vao
-        }else{
+        } else {
             0
         };
 
@@ -94,7 +93,7 @@ pub fn load(gl_context: &glutin::Context<PossiblyCurrent>) -> Gl {
             gl::FALSE,
             trans.as_array().as_ptr() as *const GLfloat,
         );
-        Gl { gl, program, rect_vbo:vb, rect_vao:vao}
+        Gl { gl, program, rect_vbo: vb, rect_vao: vao }
     }
 }
 
@@ -127,8 +126,8 @@ impl Gl {
     }
 
     #[inline(always)]
-    pub fn draw_rect_vertex(&self, vertices:&[f32]){
-        unsafe{
+    pub fn draw_rect_vertex(&self, vertices: &[f32]) {
+        unsafe {
             self.gl.BindBuffer(gl::ARRAY_BUFFER, self.rect_vbo);
             self.gl.BufferData(
                 gl::ARRAY_BUFFER,

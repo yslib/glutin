@@ -1,3 +1,1 @@
-
-pub struct Image{
-}
+pub struct Image {}

@@ -86,7 +86,7 @@ pub fn get_lut() -> HashMap<String, VirtualKeyCode> {
 }
 pub struct ShortcutTriggerBuilder<E> {
     shortcuts: Vec<String>,
-    callbacks: Vec<Box<dyn FnMut() + Send+Sync>>,
+    callbacks: Vec<Box<dyn FnMut() + Send + Sync>>,
     lut: HashMap<String, E>,
 }
 
@@ -95,13 +95,13 @@ where
     E: Event,
 {
     pub fn new(dict: HashMap<String, E>) -> ShortcutTriggerBuilder<E> {
-        ShortcutTriggerBuilder {
-            shortcuts: vec![],
-            callbacks: vec![],
-            lut: dict,
-        }
+        ShortcutTriggerBuilder { shortcuts: vec![], callbacks: vec![], lut: dict }
     }
-    pub fn with_shortcut(mut self, shortcut: String, trigger: Box<dyn FnMut() + Send+ Sync>) -> Self {
+    pub fn with_shortcut(
+        mut self,
+        shortcut: String,
+        trigger: Box<dyn FnMut() + Send + Sync>,
+    ) -> Self {
         self.shortcuts.push(shortcut);
         self.callbacks.push(trigger);
         self
@@ -147,9 +147,9 @@ where
 impl Event for VirtualKeyCode {}
 #[cfg(test)]
 mod test {
+    use super::get_lut;
     use super::Event;
     use super::ShortcutTriggerBuilder;
-    use super::get_lut;
     use super::VirtualKeyCode;
 
     #[test]

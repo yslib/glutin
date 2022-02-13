@@ -8,8 +8,8 @@ use glutin::event_loop::EventLoopProxy;
 use glutin::{
     dpi::{LogicalPosition, LogicalSize, PhysicalSize, Position},
     event::{
-        ElementState, Event, KeyboardInput, ModifiersState, MouseButton, VirtualKeyCode,
-        WindowEvent,
+        DeviceEvent, ElementState, Event, KeyboardInput, ModifiersState, MouseButton,
+        VirtualKeyCode, WindowEvent,
     },
     event_loop::{ControlFlow, EventLoop},
     monitor::MonitorHandle,
@@ -18,9 +18,12 @@ use glutin::{
     ContextBuilder, ContextWrapper, NotCurrent, PossiblyCurrent,
 };
 
+use super::window::WindowId;
 use super::{
     action::{Action, ActionContext, AppContext, Execute, KeyBinding},
     canvas::{Canvas, RegionSelector},
+    capture::CaptureDevice,
+    event::UserEvent,
     event::{KeyInputData, MouseData, WindowEventHandler},
     graphics::Graphics,
     graphics_impl::opengl_impl::GraphicsOpenGLImpl,
@@ -34,18 +37,16 @@ use windows::{
     Win32::UI::WindowsAndMessaging::*,
 };
 
-pub struct ApplicationBuilder<T> {
+pub struct ApplicationBuilder {
     app_name: String,
     config_file_path: PathBuf,
-    phantom: PhantomData<T>,
 }
 
-impl<T> ApplicationBuilder<T> {
+impl ApplicationBuilder {
     pub fn new() -> Self {
         ApplicationBuilder {
             app_name: "".to_owned(),
             config_file_path: PathBuf::from("".to_owned()),
-            phantom: PhantomData,
         }
     }
     pub fn with_name(mut self, name: &str) -> Self {
@@ -64,6 +65,7 @@ impl<T> ApplicationBuilder<T> {
             unsafe {
                 match handle {
                     RawWindowHandle::Win32(Win32Handle { hwnd, hinstance, .. }) => {
+                        // println!("Window Handle: {:p}", hwnd);
                         let hwnd = HWND(hwnd as isize);
                         let mut exstyle =
                             WINDOW_EX_STYLE(GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32);
@@ -76,23 +78,33 @@ impl<T> ApplicationBuilder<T> {
             }
         }
     }
+    fn load_user_event_actions(&self) -> Vec<Action> {
+        vec![Action::DoImageCapture]
+    }
 
-    fn load_keybinding_actions(&self) -> Vec<KeyBinding<VirtualKeyCode, T>> {
-        vec![KeyBinding {
-            action: Action::<T>::ImageCapture,
-            mods: ModifiersState::CTRL | ModifiersState::ALT,
-            key: VirtualKeyCode::Key1,
-        }]
+    fn load_keybinding_actions(&self) -> Vec<KeyBinding<VirtualKeyCode>> {
+        vec![
+            KeyBinding {
+                action: Action::ImageCapture,
+                mods: ModifiersState::CTRL | ModifiersState::ALT,
+                key: VirtualKeyCode::Key1,
+            },
+            KeyBinding {
+                action: Action::Suspend,
+                mods: ModifiersState::empty(),
+                key: VirtualKeyCode::Escape,
+            },
+        ]
     }
 
     fn create_graphics<'a, 'b>(
         &self,
         windowed_context: &'a ContextWrapper<PossiblyCurrent, Window>,
-        event_loop: &'b EventLoop<T>,
+        event_loop: &'b EventLoop<UserEvent>,
     ) -> Box<dyn Graphics> {
         use std::cell::RefCell;
 
-        let monitor = event_loop.available_monitors().nth(0).expect("Invalid monitor handle");
+        let monitor = event_loop.available_monitors().nth(1).expect("Invalid monitor handle");
         let size = monitor.size();
         let render_api = support::load(windowed_context);
         Box::new(GraphicsOpenGLImpl {
@@ -103,14 +115,15 @@ impl<T> ApplicationBuilder<T> {
 
     fn create_window_context(
         &self,
-        event_loop: &EventLoop<T>,
+        event_loop: &EventLoop<UserEvent>,
     ) -> ContextWrapper<NotCurrent, Window> {
         let wb = WindowBuilder::new()
             .with_title(self.app_name.clone())
-            .with_decorations(true)
+            .with_decorations(false)
             .with_transparent(true)
-            .with_maximized(false)
-            .with_always_on_top(false);
+            .with_maximized(true)
+            .with_always_on_top(false)
+            .with_visible(true);
 
         let windowed_context = ContextBuilder::new()
             .with_gl_profile(glutin::GlProfile::Core)
@@ -119,47 +132,30 @@ impl<T> ApplicationBuilder<T> {
         windowed_context
     }
 
-    fn create_main_window(&self, event_loop: &EventLoop<T>) -> MainWindow<T> {
-        let wb = WindowBuilder::new()
-            .with_decorations(false)
-            .with_transparent(true)
-            .with_maximized(true)
-            .with_always_on_top(false);
-
-        let windowed_context = ContextBuilder::new()
-            .with_gl_profile(glutin::GlProfile::Core)
-            .build_windowed(wb, event_loop)
-            .unwrap();
+    fn create_main_window(&self, event_loop: &EventLoop<UserEvent>) -> MainWindow {
+        let windowed_context = self.create_window_context(event_loop);
 
         let windowed_context = unsafe { windowed_context.make_current().expect("make current") };
 
-        let graphics = self.create_graphics(&windowed_context, &event_loop);
-        // let canvas = Canvas { objects: vec![], graphics };
-        MainWindow {
-            windowed_context: Some(windowed_context),
-            graphics,
-            event_proxy: event_loop.create_proxy(),
-        }
-    }
-
-    pub fn build(self, event_loop: &EventLoop<T>) -> Result<Application<T>> {
-        // let event_loop = EventLoop::<T>::with_user_event();
-        let monitor = event_loop.available_monitors().nth(0).expect("Invalid monitor handle");
-        let windowed_context = self.create_window_context(&event_loop);
-
-        let windowed_context = unsafe { windowed_context.make_current().unwrap() };
         windowed_context.window().set_outer_position(LogicalPosition::new(0, 0));
 
         self.platform_config(&windowed_context);
 
+        let graphics = self.create_graphics(&windowed_context, &event_loop);
+        MainWindow::new(windowed_context, graphics, event_loop.create_proxy(), WindowId::MainWindow)
+    }
+
+    pub fn build(self, event_loop: &EventLoop<UserEvent>) -> Result<Application> {
         let main_window = self.create_main_window(event_loop);
 
         let app = Application {
             main_window,
             name: self.app_name.clone(),
             mods: ModifiersState::empty(),
-            event_proxy:event_loop.create_proxy(),
+            event_proxy: event_loop.create_proxy(),
+            capture_device: CaptureDevice::new(),
             keybinding_actions: self.load_keybinding_actions(),
+            user_event_actions: self.load_user_event_actions(),
             mouse_state: ElementState::Released,
             mouse_begin: From::from((0, 0)),
             mouse_pos: From::from((0, 0)),
@@ -170,11 +166,13 @@ impl<T> ApplicationBuilder<T> {
     }
 }
 
-pub struct Application<T: 'static> {
+pub struct Application {
     name: String,
-    main_window: MainWindow<T>,
-    keybinding_actions: Vec<KeyBinding<VirtualKeyCode, T>>,
-    event_proxy: EventLoopProxy<T>,
+    main_window: MainWindow,
+    keybinding_actions: Vec<KeyBinding<VirtualKeyCode>>,
+    user_event_actions: Vec<Action>,
+    event_proxy: EventLoopProxy<UserEvent>,
+    capture_device: CaptureDevice,
     pub mods: ModifiersState,
     pub mouse_state: ElementState,
     pub mouse_pos: PhysicalPosition<f64>,
@@ -183,18 +181,38 @@ pub struct Application<T: 'static> {
     pub mouse_btn: MouseButton,
 }
 
-impl<T> Application<T> {
+impl Application {
     pub fn handle_keyboard_event(&mut self, input: KeyboardInput) {
         input.virtual_keycode.map(|k| {
             let data = KeyInputData { virtual_keycode: k };
             self.main_window.on_keyboard_event(&data);
-            // trigger
-
             let mut app_ctx = AppContext {
-                event_proxy: &mut self.event_proxy
+                event_proxy: &mut self.event_proxy,
+                main_window: &mut self.main_window,
+                capture_device: &mut self.capture_device,
             };
             for binding in &self.keybinding_actions {
                 if binding.is_triggered(self.mods, k) {
+                    binding.action.execute(&mut app_ctx);
+                }
+            }
+        });
+    }
+
+    pub fn handle_device_keyboard_event(&mut self, input: KeyboardInput) {
+        input.virtual_keycode.map(|k| {
+            println!("device input: {:?}", input);
+            let data = KeyInputData { virtual_keycode: k };
+            // self.main_window.on_keyboard_event(&data);
+            let mut app_ctx = AppContext {
+                event_proxy: &mut self.event_proxy,
+                main_window: &mut self.main_window,
+                capture_device: &mut self.capture_device,
+            };
+
+            let mods = input.modifiers;
+            for binding in &self.keybinding_actions {
+                if binding.is_triggered(mods, k) {
                     binding.action.execute(&mut app_ctx);
                 }
             }
@@ -237,15 +255,38 @@ impl<T> Application<T> {
         self.main_window.handle_redraw_event();
     }
 
-    pub fn handle_user_event(&self, data: &T) {
-        self.main_window.on_user_event(data);
+    pub fn handle_user_event(&mut self, data: &UserEvent) {
+        println!("user event: {:?}", data);
+        match data.window_id {
+            Some(window_id) => match window_id {
+                WindowId::MainWindow => {
+                    self.main_window.on_user_event(data);
+                }
+                WindowId::Action => match data.event {
+                    crate::app::event::Event::DoAction(action) => {
+                        let mut app_ctx = AppContext {
+                            event_proxy: &mut self.event_proxy,
+                            main_window: &mut self.main_window,
+                            capture_device: &mut self.capture_device,
+                        };
+                        action.execute(&mut app_ctx)
+                    }
+                    _ => (),
+                },
+                _ => (),
+            },
+            None => {
+                // send to all windows
+                self.main_window.on_user_event(data);
+            }
+        }
     }
 
     pub fn on_modifier_state_changed(&mut self, modifier: ModifiersState) {
         self.mods = modifier;
     }
 
-    pub fn run(&mut self, event_loop: EventLoop<T>) {
+    pub fn run(&mut self, event_loop: EventLoop<UserEvent>) {
         let mut event_loop = event_loop;
         event_loop.run_return(|event, _, control_flow| {
             *control_flow = ControlFlow::Wait;
@@ -262,6 +303,12 @@ impl<T> Application<T> {
                     }
                     WindowEvent::CursorMoved { .. } | WindowEvent::MouseInput { .. } => {
                         self.handle_mouse_event(event);
+                    }
+                    _ => (),
+                },
+                Event::DeviceEvent { event, .. } => match event {
+                    DeviceEvent::Key(input) => {
+                        self.handle_device_keyboard_event(input);
                     }
                     _ => (),
                 },

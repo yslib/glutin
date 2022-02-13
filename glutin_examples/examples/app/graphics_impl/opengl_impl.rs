@@ -4,8 +4,7 @@ use crate::support::{self, Gl};
 use glm::{length, vec3, Matrix3};
 
 use glutin::ContextWrapper;
-use glutin::{window::Window, PossiblyCurrent,Context};
-use windows::Win32::UI::WindowsAndMessaging::ARW_BOTTOMLEFT;
+use glutin::{window::Window, Context, PossiblyCurrent};
 
 use std::{cell::RefCell, ops::Mul};
 
