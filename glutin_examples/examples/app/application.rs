@@ -65,24 +65,19 @@ impl ApplicationBuilder {
             unsafe {
                 match handle {
                     RawWindowHandle::Win32(Win32Handle { hwnd, hinstance, .. }) => {
-                        // println!("Window Handle: {:p}", hwnd);
                         let hwnd = HWND(hwnd as isize);
                         let mut exstyle =
                             WINDOW_EX_STYLE(GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32);
                         exstyle = exstyle | WS_EX_TOOLWINDOW;
                         SetWindowLongW(hwnd, GWL_EXSTYLE, exstyle.0 as i32);
-                        println!("set window GLW_EXSTYLE")
                     }
                     _ => (),
                 }
             }
         }
     }
-    fn load_user_event_actions(&self) -> Vec<Action> {
-        vec![Action::DoImageCapture]
-    }
 
-    fn load_keybinding_actions(&self) -> Vec<KeyBinding<VirtualKeyCode>> {
+    fn reload_keybinding_actions(&self) -> Vec<KeyBinding<VirtualKeyCode>> {
         vec![
             KeyBinding {
                 action: Action::ImageCapture,
@@ -104,7 +99,7 @@ impl ApplicationBuilder {
     ) -> Box<dyn Graphics> {
         use std::cell::RefCell;
 
-        let monitor = event_loop.available_monitors().nth(1).expect("Invalid monitor handle");
+        let monitor = event_loop.available_monitors().nth(0).expect("Invalid monitor handle");
         let size = monitor.size();
         let render_api = support::load(windowed_context);
         Box::new(GraphicsOpenGLImpl {
@@ -154,8 +149,7 @@ impl ApplicationBuilder {
             mods: ModifiersState::empty(),
             event_proxy: event_loop.create_proxy(),
             capture_device: CaptureDevice::new(),
-            keybinding_actions: self.load_keybinding_actions(),
-            user_event_actions: self.load_user_event_actions(),
+            keybinding_actions: self.reload_keybinding_actions(),
             mouse_state: ElementState::Released,
             mouse_begin: From::from((0, 0)),
             mouse_pos: From::from((0, 0)),
@@ -170,7 +164,6 @@ pub struct Application {
     name: String,
     main_window: MainWindow,
     keybinding_actions: Vec<KeyBinding<VirtualKeyCode>>,
-    user_event_actions: Vec<Action>,
     event_proxy: EventLoopProxy<UserEvent>,
     capture_device: CaptureDevice,
     pub mods: ModifiersState,
@@ -201,7 +194,6 @@ impl Application {
 
     pub fn handle_device_keyboard_event(&mut self, input: KeyboardInput) {
         input.virtual_keycode.map(|k| {
-            println!("device input: {:?}", input);
             let data = KeyInputData { virtual_keycode: k };
             // self.main_window.on_keyboard_event(&data);
             let mut app_ctx = AppContext {
@@ -256,7 +248,6 @@ impl Application {
     }
 
     pub fn handle_user_event(&mut self, data: &UserEvent) {
-        println!("user event: {:?}", data);
         match data.window_id {
             Some(window_id) => match window_id {
                 WindowId::MainWindow => {

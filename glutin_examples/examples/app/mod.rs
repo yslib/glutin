@@ -5,5 +5,4 @@ pub mod capture;
 pub mod event;
 pub mod graphics;
 pub mod graphics_impl;
-pub mod image;
 pub mod window;

@@ -71,7 +71,6 @@ impl Renderable for RegionSelector {
     fn update(&self, graphics: &dyn Graphics) {
         if self.visible {
             let rect = self.bound.rect();
-            println!("rect: {:?}", rect);
             graphics.draw_rect(rect.0, rect.1, rect.2, rect.3);
         }
     }

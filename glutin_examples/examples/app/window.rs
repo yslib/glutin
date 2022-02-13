@@ -12,6 +12,8 @@ use super::{
     graphics::Graphics,
 };
 
+use log::{debug, info};
+
 #[derive(Debug, Clone, Copy)]
 pub enum WindowId {
     Application,
@@ -60,7 +62,7 @@ impl MainWindow {
     }
 
     pub fn handle_redraw_event(&mut self) {
-        self.graphics.clear((0.0, 0.0, 0.0, 0.0));
+        self.graphics.clear((0.0, 0.0, 0.0, 0.5));
         self.region_selector.update(&*self.graphics);
         self.swap_buffers();
     }
@@ -83,7 +85,7 @@ impl MainWindow {
 
     pub fn set_visible(&self, visible: bool) {
         self.windowed_context.as_ref().map(|f| {
-            println!("set main window visible: {}", visible);
+            info!("set main window visible: {}", visible);
             f.window().set_visible(visible);
         });
     }
@@ -91,13 +93,11 @@ impl MainWindow {
 
 impl WindowEventHandler<UserEvent> for MainWindow {
     fn on_mouse_press_event(&mut self, data: &MouseData) {
-        println!("on_mouse_press_event");
         self.region_selector.set_visible(true);
         self.region_selector.set_first(data.position.into());
     }
 
     fn on_mouse_release_event(&mut self, data: &MouseData) {
-        println!("on_mouse_release_event");
         self.region_selector.set_visible(false);
         let do_capture_event = UserEvent {
             window_id: Some(WindowId::Action),
@@ -108,7 +108,6 @@ impl WindowEventHandler<UserEvent> for MainWindow {
     }
 
     fn on_mouse_move_event(&mut self, data: &MouseData) {
-        println!("on_mouse_move_event: {:?}", data.position);
         self.region_selector.set_second(data.position.into());
         self.request_redraw();
     }
@@ -118,7 +117,6 @@ impl WindowEventHandler<UserEvent> for MainWindow {
     }
 
     fn on_user_event(&mut self, data: &UserEvent) {
-        println!("on_user_event {:?}", *data);
         match data.event {
             crate::app::event::Event::InvokeRegionSelector => {
                 self.set_visible(true);

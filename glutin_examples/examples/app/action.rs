@@ -1,13 +1,19 @@
+use chrono::Utc;
+use directories::UserDirs;
+use std::path::PathBuf;
+
 use super::window::WindowId;
 use super::{
     capture::CaptureDevice,
     event::{Event, UserEvent},
     window::MainWindow,
 };
+use chrono::Timelike;
 use glutin::{
     event::{ModifiersState, VirtualKeyCode},
     event_loop::EventLoopProxy,
 };
+use log::debug;
 pub trait Execute<A: ActionContext> {
     fn execute(&self, ctx: &mut A);
 }
@@ -26,17 +32,12 @@ where
 {
     fn execute(&self, ctx: &mut A) {
         match self {
-            Self::ImageCapture => {
-                ctx.invoke_image_capture();
-            }
-            Self::GifCapture => {
-                ctx.invoke_gif_capture();
-            }
-            Self::Suspend => {
-                ctx.suspend();
-            }
+            Self::ImageCapture => ctx.invoke_image_capture(),
+            Self::GifCapture => ctx.invoke_gif_capture(),
+            Self::Suspend => ctx.suspend(),
             Self::DoImageCapture => {
                 ctx.do_image_capture();
+                ctx.suspend();
             }
         }
     }
@@ -57,25 +58,33 @@ pub struct AppContext<'a> {
 
 impl<'a> ActionContext for AppContext<'a> {
     fn invoke_image_capture(&mut self) {
-        println!("invoke_image_capture");
+        debug!("invoke_image_capture");
         self.event_proxy
             .send_event(UserEvent::new(Some(WindowId::MainWindow), Event::InvokeRegionSelector));
     }
 
     fn invoke_gif_capture(&mut self) {
-        println!("invoke_gif_capture");
+        debug!("invoke_gif_capture");
         self.event_proxy
             .send_event(UserEvent::new(Some(WindowId::MainWindow), Event::InvokeRegionSelector));
     }
 
     fn suspend(&mut self) {
-        println!("suspend");
+        debug!("suspend");
         self.main_window.set_visible(false);
     }
 
     fn do_image_capture(&mut self) {
+        debug!("do_image_capture");
         let rect = self.main_window.get_selector_region();
-        self.capture_device.capture_image(rect);
+        let image = self.capture_device.capture_image(rect);
+        let user_dir = UserDirs::new();
+        let mut desktop_dir = user_dir.desktop_dir().map_or(PathBuf::new(), |f| f.to_path_buf());
+        let now = Utc::now();
+        let ts = chrono::offset::Local::now().format("%F-%H-%M-%S").to_string();
+        let filename = format!("CAP_{}.png", ts);
+        desktop_dir.push(filename);
+        image.save(desktop_dir).unwrap();
     }
 }
 

@@ -1,5 +1,8 @@
-use super::{canvas::Bound2, image::Image};
-use image::{GenericImage, GenericImageView, ImageBuffer, RgbImage};
+use std::alloc::GlobalAlloc;
+
+use super::canvas::Bound2;
+use image::{GenericImage, GenericImageView, ImageBuffer, RgbImage, RgbaImage};
+use log::{info, warn};
 
 use windows::{
     core::*,
@@ -8,38 +11,84 @@ use windows::{
     Win32::{Foundation::*, Graphics::Gdi::*, System::Threading::*, UI::WindowsAndMessaging::*},
 };
 
-pub struct CaptureDevice {
-    hdc: HDC,
-    hdc_temp: CreatedHDC,
-}
+pub struct CaptureDevice {}
 
 impl CaptureDevice {
     pub fn new() -> Self {
-        unsafe {
-            let hdc = GetDC(HWND(0));
-            let hdc_temp = CreateCompatibleDC(hdc);
-            CaptureDevice { hdc, hdc_temp }
-        }
+        unsafe { CaptureDevice {} }
     }
 
-    pub fn capture_image(&self, rect: Bound2) {
+    pub fn capture_image(&self, rect: Bound2) -> RgbaImage {
         let rect = rect.rect();
         unsafe {
-            let bitmap = CreateCompatibleBitmap(self.hdc, rect.2 as i32, rect.3 as i32);
+            let hdc_src = GetDC(HWND(0)); // the whole desktop
+            let hdc_mem = CreateCompatibleDC(hdc_src);
+            let bitmap = CreateCompatibleBitmap(hdc_src, rect.2 as i32, rect.3 as i32);
+            let old_bitmap = SelectObject(hdc_mem, bitmap);
             BitBlt(
-                self.hdc_temp,
+                hdc_mem,
                 0,
                 0,
                 rect.2 as i32,
                 rect.3 as i32,
-                self.hdc,
+                hdc_src,
                 rect.0 as i32,
                 rect.1 as i32,
                 SRCCOPY,
             );
-            SelectObject(self.hdc_temp, bitmap);
+            let bitmap = SelectObject(hdc_mem, old_bitmap);
+
+            let mut bitmap_info: BITMAP = BITMAP::default();
+            use std::ffi::c_void;
+            use std::mem;
+            GetObjectW(
+                bitmap,
+                mem::size_of::<BITMAP>() as i32,
+                (&mut bitmap_info) as *mut _ as *mut c_void,
+            );
+            println!("bitmap info: {:?}", bitmap_info);
+
+            let mut bi: BITMAPINFOHEADER = BITMAPINFOHEADER::default();
+
+            bi.biSize = mem::size_of::<BITMAPINFOHEADER>() as u32;
+            bi.biWidth = bitmap_info.bmWidth;
+            bi.biHeight = bitmap_info.bmHeight;
+            bi.biPlanes = 1;
+            bi.biBitCount = 32;
+            bi.biCompression = BI_RGB as u32;
+            bi.biSizeImage = 0;
+            bi.biXPelsPerMeter = 0;
+            bi.biYPelsPerMeter = 0;
+            bi.biClrUsed = 0;
+            bi.biClrImportant = 0;
+
+            let dw_bmp_size =
+                ((bitmap_info.bmWidth * bi.biBitCount as i32 + 31) / 32) * 4 * bitmap_info.bmHeight;
+
+            let mut raw_data = vec![0u8; dw_bmp_size as usize];
+
+            // let dc = CreateCompatibleDC(HDC(0));
+
+            GetDIBits(
+                hdc_mem,
+                HBITMAP(bitmap.0),
+                0,
+                bitmap_info.bmHeight as u32,
+                raw_data.as_mut_ptr() as *mut c_void,
+                &mut bi as *mut _ as *mut BITMAPINFO,
+                DIB_RGB_COLORS,
+            );
+
+            ReleaseDC(HWND(0), hdc_src);
+            DeleteDC(hdc_mem);
+
+            ImageBuffer::from_fn(bitmap_info.bmWidth as u32, bitmap_info.bmHeight as u32, |x, y| {
+                let ind = y * bitmap_info.bmWidth as u32 + x;
+                let ind = ind as usize;
+                let ptr = raw_data.as_ptr().add(ind * 4);
+                image::Rgba([*ptr, *ptr.add(1), *ptr.add(2), *ptr.add(3)])
+            })
         }
-        println!("capture {:?}", rect);
     }
 }
 

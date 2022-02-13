@@ -34,7 +34,6 @@ mod opengl_backend_test {
         let transform = super::screen_to_ndc_mat(desktop.0, desktop.1);
         let topleft = glm::vec3(0.0, 0.0, 1.0);
         let topleft_ndc = glm::vec3(-1.0, 1.0, 1.0);
-        println!("{:?}", transform * topleft);
     }
 }
 
@@ -60,24 +59,24 @@ impl Graphics for GraphicsOpenGLImpl {
         self.render_api.borrow().draw_rect_vertex(&[
             topleft.x,
             topleft.y,
-            0.1,
-            0.1,
-            0.3,
+            0.0,
+            0.0,
+            0.0,
             topright.x,
             topright.y,
-            0.1,
-            0.1,
-            0.3,
+            0.0,
+            0.0,
+            0.0,
             bottomleft.x,
             bottomleft.y,
-            0.1,
-            0.1,
-            0.3,
+            0.0,
+            0.0,
+            0.0,
             bottomright.x,
             bottomright.y,
-            0.1,
-            0.1,
-            0.3,
+            0.0,
+            0.0,
+            0.0,
         ]);
     }
 
