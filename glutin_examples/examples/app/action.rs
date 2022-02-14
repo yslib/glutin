@@ -1,9 +1,12 @@
 use chrono::Utc;
 use directories::UserDirs;
+use std::ops::Bound;
 use std::path::PathBuf;
 
+use super::event::WindowEventHandler;
 use super::window::TargetId;
 use super::{
+    canvas::Bound2,
     capture::CaptureDevice,
     event::{Event, UserEvent},
     window::MainWindow,
@@ -21,7 +24,7 @@ pub trait Execute<A: ActionContext> {
 #[derive(Debug, Clone, Copy)]
 pub enum Action {
     ImageCapture,
-    DoImageCapture,
+    DoImageCapture(Bound2),
     GifCapture,
     Suspend,
 }
@@ -35,8 +38,8 @@ where
             Self::ImageCapture => ctx.invoke_image_capture(),
             Self::GifCapture => ctx.invoke_gif_capture(),
             Self::Suspend => ctx.suspend(),
-            Self::DoImageCapture => {
-                ctx.do_image_capture();
+            Self::DoImageCapture(rect) => {
+                ctx.do_image_capture(*rect);
                 ctx.suspend();
             }
         }
@@ -46,13 +49,13 @@ where
 pub trait ActionContext {
     fn invoke_image_capture(&mut self);
     fn invoke_gif_capture(&mut self);
-    fn do_image_capture(&mut self);
+    fn do_image_capture(&mut self, rect: Bound2);
     fn suspend(&mut self);
 }
 
 pub struct AppContext<'a> {
     pub event_proxy: &'a mut EventLoopProxy<UserEvent>,
-    pub main_window: &'a mut MainWindow,
+    pub main_window: &'a mut dyn WindowEventHandler,
     pub capture_device: &'a mut CaptureDevice,
 }
 
@@ -74,9 +77,8 @@ impl<'a> ActionContext for AppContext<'a> {
         self.main_window.set_visible(false);
     }
 
-    fn do_image_capture(&mut self) {
+    fn do_image_capture(&mut self, rect: Bound2) {
         debug!("do_image_capture");
-        let rect = self.main_window.get_selector_region();
         let image = self.capture_device.capture_image(rect);
         let user_dir = UserDirs::new();
         let mut desktop_dir = user_dir.desktop_dir().map_or(PathBuf::new(), |f| f.to_path_buf());

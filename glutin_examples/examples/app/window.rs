@@ -61,12 +61,6 @@ impl MainWindow {
         self.windowed_context.as_ref().unwrap().swap_buffers().expect("swap buffer");
     }
 
-    pub fn handle_redraw_event(&mut self) {
-        self.graphics.clear((0.0, 0.0, 0.0, 0.5));
-        self.region_selector.update(&*self.graphics);
-        self.swap_buffers();
-    }
-
     pub fn make_current(&mut self) {
         if !self.windowed_context.as_ref().unwrap().is_current() {
             self.windowed_context = Some(unsafe {
@@ -82,18 +76,9 @@ impl MainWindow {
     pub fn get_selector_region(&self) -> Bound2 {
         self.region_selector.bound
     }
-
-    pub fn set_visible(&mut self, visible: bool) {
-        self.region_selector.bound = Bound2::default();
-        println!("{:?}", self.region_selector.bound);
-        self.windowed_context.as_ref().map(|f| {
-            info!("set main window visible: {}", visible);
-            f.window().set_visible(visible);
-        });
-    }
 }
 
-impl WindowEventHandler<UserEvent> for MainWindow {
+impl WindowEventHandler for MainWindow {
     fn on_mouse_press_event(&mut self, data: &MouseData) {
         self.region_selector.set_visible(true);
         self.region_selector.set_first(data.position.into());
@@ -103,7 +88,9 @@ impl WindowEventHandler<UserEvent> for MainWindow {
         self.region_selector.set_visible(false);
         let do_capture_event = UserEvent {
             window_id: Some(TargetId::Action),
-            event: crate::app::event::Event::DoAction(Action::DoImageCapture),
+            event: crate::app::event::Event::DoAction(Action::DoImageCapture(
+                self.region_selector.bound,
+            )),
         };
         self.event_proxy.send_event(do_capture_event);
         self.request_redraw();
@@ -118,6 +105,12 @@ impl WindowEventHandler<UserEvent> for MainWindow {
         // unimplemented!();
     }
 
+    fn handle_redraw_event(&mut self) {
+        self.graphics.clear((0.0, 0.0, 0.0, 0.5));
+        self.region_selector.update(&*self.graphics);
+        self.swap_buffers();
+    }
+
     fn on_user_event(&mut self, data: &UserEvent) {
         match data.event {
             crate::app::event::Event::InvokeRegionSelector => {
@@ -125,5 +118,14 @@ impl WindowEventHandler<UserEvent> for MainWindow {
             }
             _ => {}
         }
+    }
+
+    fn set_visible(&mut self, visible: bool) {
+        self.region_selector.bound = Bound2::default();
+        println!("{:?}", self.region_selector.bound);
+        self.windowed_context.as_ref().map(|f| {
+            info!("set main window visible: {}", visible);
+            f.window().set_visible(visible);
+        });
     }
 }

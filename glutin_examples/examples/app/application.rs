@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::ops::DerefMut;
 use std::rc::Rc;
 use std::{marker::PhantomData, path::PathBuf};
 
@@ -14,7 +16,7 @@ use glutin::{
     event_loop::{ControlFlow, EventLoop},
     monitor::MonitorHandle,
     platform::run_return::EventLoopExtRunReturn,
-    window::{Fullscreen, Window, WindowBuilder},
+    window::{Fullscreen, Window, WindowBuilder, WindowId},
     ContextBuilder, ContextWrapper, NotCurrent, PossiblyCurrent,
 };
 
@@ -99,7 +101,7 @@ impl ApplicationBuilder {
     ) -> Box<dyn Graphics> {
         use std::cell::RefCell;
 
-        let monitor = event_loop.available_monitors().nth(0).expect("Invalid monitor handle");
+        let monitor = event_loop.available_monitors().nth(1).expect("Invalid monitor handle");
         let size = monitor.size();
         let render_api = support::load(windowed_context);
         Box::new(GraphicsOpenGLImpl {
@@ -141,7 +143,7 @@ impl ApplicationBuilder {
     }
 
     pub fn build(self, event_loop: &EventLoop<UserEvent>) -> Result<Application> {
-        let main_window = self.create_main_window(event_loop);
+        let main_window = Box::new(self.create_main_window(event_loop));
 
         let app = Application {
             main_window,
@@ -150,6 +152,7 @@ impl ApplicationBuilder {
             event_proxy: event_loop.create_proxy(),
             capture_device: CaptureDevice::new(),
             keybinding_actions: self.reload_keybinding_actions(),
+            windows: HashMap::new(),
             mouse_state: ElementState::Released,
             mouse_begin: From::from((0, 0)),
             mouse_pos: From::from((0, 0)),
@@ -162,10 +165,11 @@ impl ApplicationBuilder {
 
 pub struct Application {
     name: String,
-    main_window: MainWindow,
+    main_window: Box<dyn WindowEventHandler>,
     keybinding_actions: Vec<KeyBinding<VirtualKeyCode>>,
     event_proxy: EventLoopProxy<UserEvent>,
     capture_device: CaptureDevice,
+    windows: HashMap<WindowId, Box<dyn WindowEventHandler>>,
     pub mods: ModifiersState,
     pub mouse_state: ElementState,
     pub mouse_pos: PhysicalPosition<f64>,
@@ -181,7 +185,7 @@ impl Application {
             self.main_window.on_keyboard_event(&data);
             let mut app_ctx = AppContext {
                 event_proxy: &mut self.event_proxy,
-                main_window: &mut self.main_window,
+                main_window: self.main_window.deref_mut(),
                 capture_device: &mut self.capture_device,
             };
             for binding in &self.keybinding_actions {
@@ -198,7 +202,7 @@ impl Application {
             // self.main_window.on_keyboard_event(&data);
             let mut app_ctx = AppContext {
                 event_proxy: &mut self.event_proxy,
-                main_window: &mut self.main_window,
+                main_window: self.main_window.deref_mut(),
                 capture_device: &mut self.capture_device,
             };
 
@@ -243,6 +247,15 @@ impl Application {
         }
     }
 
+    pub fn dispatch_window_event(&mut self, event:Event<UserEvent>){
+        match event{
+            Event::WindowEvent{window_id,event}=>{
+
+            },
+            _=>()
+        }
+    }
+
     pub fn handle_redraw_event(&mut self) {
         self.main_window.handle_redraw_event();
     }
@@ -257,7 +270,7 @@ impl Application {
                     crate::app::event::Event::DoAction(action) => {
                         let mut app_ctx = AppContext {
                             event_proxy: &mut self.event_proxy,
-                            main_window: &mut self.main_window,
+                            main_window: self.main_window.deref_mut(),
                             capture_device: &mut self.capture_device,
                         };
                         action.execute(&mut app_ctx)
@@ -283,6 +296,9 @@ impl Application {
             *control_flow = ControlFlow::Wait;
             match event {
                 Event::LoopDestroyed => return,
+                Event::WindowEvent{..}=>{
+                    self.dispatch_window_event(event);
+                }
                 Event::WindowEvent { event, .. } => match event {
                     WindowEvent::Resized(physical_size) => (),
                     WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
@@ -294,9 +310,9 @@ impl Application {
                     }
                     WindowEvent::CursorMoved { .. } | WindowEvent::MouseInput { .. } => {
                         self.handle_mouse_event(event);
-                    },
-                    WindowEvent::Focused(focus)=>{
-                        println!("Focused:{}",focus);
+                    }
+                    WindowEvent::Focused(focus) => {
+                        println!("Focused:{}", focus);
                     }
                     _ => (),
                 },
