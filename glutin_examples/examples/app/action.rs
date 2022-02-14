@@ -2,7 +2,7 @@ use chrono::Utc;
 use directories::UserDirs;
 use std::path::PathBuf;
 
-use super::window::WindowId;
+use super::window::TargetId;
 use super::{
     capture::CaptureDevice,
     event::{Event, UserEvent},
@@ -60,13 +60,13 @@ impl<'a> ActionContext for AppContext<'a> {
     fn invoke_image_capture(&mut self) {
         debug!("invoke_image_capture");
         self.event_proxy
-            .send_event(UserEvent::new(Some(WindowId::MainWindow), Event::InvokeRegionSelector));
+            .send_event(UserEvent::new(Some(TargetId::MainWindow), Event::InvokeRegionSelector));
     }
 
     fn invoke_gif_capture(&mut self) {
         debug!("invoke_gif_capture");
         self.event_proxy
-            .send_event(UserEvent::new(Some(WindowId::MainWindow), Event::InvokeRegionSelector));
+            .send_event(UserEvent::new(Some(TargetId::MainWindow), Event::InvokeRegionSelector));
     }
 
     fn suspend(&mut self) {

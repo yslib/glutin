@@ -18,7 +18,7 @@ use glutin::{
     ContextBuilder, ContextWrapper, NotCurrent, PossiblyCurrent,
 };
 
-use super::window::WindowId;
+use super::window::TargetId;
 use super::{
     action::{Action, ActionContext, AppContext, Execute, KeyBinding},
     canvas::{Canvas, RegionSelector},
@@ -137,7 +137,7 @@ impl ApplicationBuilder {
         self.platform_config(&windowed_context);
 
         let graphics = self.create_graphics(&windowed_context, &event_loop);
-        MainWindow::new(windowed_context, graphics, event_loop.create_proxy(), WindowId::MainWindow)
+        MainWindow::new(windowed_context, graphics, event_loop.create_proxy(), TargetId::MainWindow)
     }
 
     pub fn build(self, event_loop: &EventLoop<UserEvent>) -> Result<Application> {
@@ -250,10 +250,10 @@ impl Application {
     pub fn handle_user_event(&mut self, data: &UserEvent) {
         match data.window_id {
             Some(window_id) => match window_id {
-                WindowId::MainWindow => {
+                TargetId::MainWindow => {
                     self.main_window.on_user_event(data);
                 }
-                WindowId::Action => match data.event {
+                TargetId::Action => match data.event {
                     crate::app::event::Event::DoAction(action) => {
                         let mut app_ctx = AppContext {
                             event_proxy: &mut self.event_proxy,
@@ -294,6 +294,9 @@ impl Application {
                     }
                     WindowEvent::CursorMoved { .. } | WindowEvent::MouseInput { .. } => {
                         self.handle_mouse_event(event);
+                    },
+                    WindowEvent::Focused(focus)=>{
+                        println!("Focused:{}",focus);
                     }
                     _ => (),
                 },

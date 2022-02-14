@@ -1,3 +1,4 @@
+#![windows_subsystem = "windows"]
 #![allow(unused)]
 mod app;
 mod misc;

@@ -3,7 +3,7 @@ use glutin::{
     event::{ElementState, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent},
 };
 
-use super::{action::Action, window::WindowId};
+use super::{action::Action, window::TargetId};
 
 #[derive(Debug)]
 pub struct MouseData {
@@ -24,12 +24,12 @@ pub enum Event {
 
 #[derive(Debug, Clone, Copy)]
 pub struct UserEvent {
-    pub window_id: Option<WindowId>,
+    pub window_id: Option<TargetId>,
     pub event: Event,
 }
 
 impl UserEvent {
-    pub fn new(window_id: Option<WindowId>, event: Event) -> Self {
+    pub fn new(window_id: Option<TargetId>, event: Event) -> Self {
         Self { window_id, event }
     }
 }

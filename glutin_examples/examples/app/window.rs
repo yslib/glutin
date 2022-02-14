@@ -15,7 +15,7 @@ use super::{
 use log::{debug, info};
 
 #[derive(Debug, Clone, Copy)]
-pub enum WindowId {
+pub enum TargetId {
     Application,
     MainWindow,
     Action,
@@ -26,15 +26,15 @@ pub struct MainWindow {
     pub graphics: Box<dyn Graphics>,
     pub event_proxy: EventLoopProxy<UserEvent>,
     pub region_selector: RegionSelector,
-    window_id: WindowId,
+    window_id: TargetId,
 }
 
 pub trait IWindow {
-    fn get_window_id(&self) -> WindowId;
+    fn get_window_id(&self) -> TargetId;
 }
 
 impl IWindow for MainWindow {
-    fn get_window_id(&self) -> WindowId {
+    fn get_window_id(&self) -> TargetId {
         self.window_id
     }
 }
@@ -44,7 +44,7 @@ impl MainWindow {
         windowed_context: WindowedContext<PossiblyCurrent>,
         graphics: Box<dyn Graphics>,
         event_proxy: EventLoopProxy<UserEvent>,
-        window_id: WindowId,
+        window_id: TargetId,
     ) -> Self {
         MainWindow {
             windowed_context: Some(windowed_context),
@@ -83,7 +83,9 @@ impl MainWindow {
         self.region_selector.bound
     }
 
-    pub fn set_visible(&self, visible: bool) {
+    pub fn set_visible(&mut self, visible: bool) {
+        self.region_selector.bound = Bound2::default();
+        println!("{:?}", self.region_selector.bound);
         self.windowed_context.as_ref().map(|f| {
             info!("set main window visible: {}", visible);
             f.window().set_visible(visible);
@@ -100,7 +102,7 @@ impl WindowEventHandler<UserEvent> for MainWindow {
     fn on_mouse_release_event(&mut self, data: &MouseData) {
         self.region_selector.set_visible(false);
         let do_capture_event = UserEvent {
-            window_id: Some(WindowId::Action),
+            window_id: Some(TargetId::Action),
             event: crate::app::event::Event::DoAction(Action::DoImageCapture),
         };
         self.event_proxy.send_event(do_capture_event);

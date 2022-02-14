@@ -18,6 +18,8 @@ impl CaptureDevice {
         unsafe { CaptureDevice {} }
     }
 
+    ///
+    /// This is the capture routine on windows using GDI
     pub fn capture_image(&self, rect: Bound2) -> RgbaImage {
         let rect = rect.rect();
         unsafe {
@@ -46,7 +48,7 @@ impl CaptureDevice {
                 mem::size_of::<BITMAP>() as i32,
                 (&mut bitmap_info) as *mut _ as *mut c_void,
             );
-            println!("bitmap info: {:?}", bitmap_info);
+            // println!("bitmap info: {:?}", bitmap_info);
 
             let mut bi: BITMAPINFOHEADER = BITMAPINFOHEADER::default();
 
@@ -67,8 +69,6 @@ impl CaptureDevice {
 
             let mut raw_data = vec![0u8; dw_bmp_size as usize];
 
-            // let dc = CreateCompatibleDC(HDC(0));
-
             GetDIBits(
                 hdc_mem,
                 HBITMAP(bitmap.0),
@@ -83,10 +83,10 @@ impl CaptureDevice {
             DeleteDC(hdc_mem);
 
             ImageBuffer::from_fn(bitmap_info.bmWidth as u32, bitmap_info.bmHeight as u32, |x, y| {
-                let ind = y * bitmap_info.bmWidth as u32 + x;
+                let ind = (bitmap_info.bmHeight as u32 - 1u32 - y) * bitmap_info.bmWidth as u32 + x;
                 let ind = ind as usize;
                 let ptr = raw_data.as_ptr().add(ind * 4);
-                image::Rgba([*ptr, *ptr.add(1), *ptr.add(2), *ptr.add(3)])
+                image::Rgba([*ptr.add(2), *ptr.add(1), *ptr, *ptr.add(3)])
             })
         }
     }
