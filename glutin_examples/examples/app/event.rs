@@ -3,7 +3,10 @@ use glutin::{
     event::{ElementState, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent},
 };
 
-use super::{action::Action, window::{Target, AppWindow}};
+use super::{
+    action::Action,
+    window::{AppWindow, Target},
+};
 
 #[derive(Debug)]
 pub struct MouseData {
@@ -30,12 +33,12 @@ pub struct UserEvent {
 }
 
 impl UserEvent {
-    pub fn new(sender: Target, receiver:Target, event: Event)->Self{
-        Self { sender, receiver, event}
+    pub fn new(sender: Target, receiver: Target, event: Event) -> Self {
+        Self { sender, receiver, event }
     }
 
-    pub fn build_action_event(sender: Target, receiver:Target, action:Action)->Self{
-        Self{sender, receiver, event:Event::DoAction(action)}
+    pub fn build_action_event(sender: Target, receiver: Target, action: Action) -> Self {
+        Self { sender, receiver, event: Event::DoAction(action) }
     }
 }
 
@@ -54,7 +57,7 @@ pub trait WindowEventHandler {
 
     fn set_visible(&mut self, visible: bool);
 
-    fn send_user_event(&self, receiver:Target, event:Event);
+    fn send_user_event(&self, receiver: Target, event: Event);
 
-    fn on_focus_event(&mut self, focus:bool);
+    fn on_focus_event(&mut self, focus: bool);
 }

@@ -1,7 +1,7 @@
 use chrono::Utc;
 use directories::UserDirs;
-use std::path::PathBuf;
 use std::ops::DerefMut;
+use std::path::PathBuf;
 
 use crate::app::window::AppWindow;
 
@@ -58,9 +58,7 @@ pub struct AppContext<'a> {
     pub window_id_hash: &'a mut WindowIDDHashMap,
 }
 
-
-impl<'a> AppContext<'a>{
-
+impl<'a> AppContext<'a> {
     pub fn find_window(&mut self, app_window: AppWindow) -> Option<&mut dyn WindowEventHandler> {
         if let Some(win) = self.window_id_hash.get(&app_window) {
             if let Some(main_window) = self.window_hash.get_mut(win) {

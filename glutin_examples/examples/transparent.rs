@@ -5,7 +5,6 @@ mod app;
 mod misc;
 mod support;
 
-
 use app::{
     application::{Application, ApplicationBuilder},
     event::UserEvent,

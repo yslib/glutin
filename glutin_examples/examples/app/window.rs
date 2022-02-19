@@ -102,7 +102,7 @@ impl WindowEventHandler for MainWindow {
     fn on_mouse_release_event(&mut self, data: &MouseData) {
         self.region_selector.set_visible(false);
         let bound = self.region_selector.bound;
-        if bound.empty() == false{
+        if bound.empty() == false {
             let action = Action::DoImageCapture(bound);
             self.send_user_event(Target::Action, Event::DoAction(action));
             self.request_redraw();
@@ -125,10 +125,10 @@ impl WindowEventHandler for MainWindow {
         // unimplemented!();
     }
 
-    fn on_focus_event(&mut self, focus:bool){
-        if focus{
+    fn on_focus_event(&mut self, focus: bool) {
+        if focus {
             //
-        }else{
+        } else {
             self.region_selector.set_visible(false);
         }
     }
