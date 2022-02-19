@@ -217,7 +217,6 @@ impl Application {
                 window_id_hash: &mut self.windows_index,
                 capture_device: &mut self.capture_device,
             };
-            println!("handle_device_keyboard_event");
             #[allow(deprecated)]
             let mods = input.modifiers;
             for binding in &self.keybinding_actions {
@@ -327,7 +326,7 @@ impl Application {
                                         }
                                     },
                                     WindowEvent::Focused(focus) => {
-                                        println!("Focused:{}", focus);
+                                        window.on_focus_event(focus);
                                     }
                                     _ => (),
                                 }

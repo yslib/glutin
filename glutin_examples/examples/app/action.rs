@@ -1,6 +1,7 @@
 use chrono::Utc;
 use directories::UserDirs;
 use std::path::PathBuf;
+use std::ops::DerefMut;
 
 use crate::app::window::AppWindow;
 
@@ -8,13 +9,10 @@ use super::window::Target;
 use super::{
     canvas::Bound2,
     capture::CaptureDevice,
-    event::{Event, UserEvent},
-    window::{ WindowHashMap, WindowIDDHashMap},
+    event::{Event, UserEvent, WindowEventHandler},
+    window::{WindowHashMap, WindowIDDHashMap},
 };
-use glutin::{
-    event::{ModifiersState},
-    event_loop::EventLoopProxy,
-};
+use glutin::{event::ModifiersState, event_loop::EventLoopProxy};
 //use log::debug;
 pub trait Execute<A: ActionContext> {
     fn execute(&self, ctx: &mut A);
@@ -60,30 +58,44 @@ pub struct AppContext<'a> {
     pub window_id_hash: &'a mut WindowIDDHashMap,
 }
 
+
+impl<'a> AppContext<'a>{
+
+    pub fn find_window(&mut self, app_window: AppWindow) -> Option<&mut dyn WindowEventHandler> {
+        if let Some(win) = self.window_id_hash.get(&app_window) {
+            if let Some(main_window) = self.window_hash.get_mut(win) {
+                return Some(main_window.deref_mut());
+            }
+        }
+        None
+    }
+}
+
 impl<'a> ActionContext for AppContext<'a> {
     fn invoke_image_capture(&mut self) {
-        println!("invoke_image_capture");
-        self.event_proxy
-            .send_event(UserEvent::new(Target::Action, Target::Window(AppWindow::RegionSelectorCanvasWindow), Event::InvokeRegionSelector)).unwrap();
+        let target_win = self.find_window(AppWindow::RegionSelectorCanvasWindow).unwrap();
+        target_win.set_visible(true);
     }
 
     fn invoke_gif_capture(&mut self) {
         // debug!("invoke_gif_capture");
         self.event_proxy
-            .send_event(UserEvent::new(Target::Action, Target::Window(AppWindow::RegionSelectorCanvasWindow), Event::InvokeRegionSelector)).unwrap();
+            .send_event(UserEvent::new(
+                Target::Action,
+                Target::Window(AppWindow::RegionSelectorCanvasWindow),
+                Event::InvokeRegionSelector,
+            ))
+            .unwrap();
     }
 
     fn suspend(&mut self) {
-       // debug!("suspend");
-        if let Some(win) = self.window_id_hash.get(&AppWindow::RegionSelectorCanvasWindow){
-            if let Some(main_window) = self.window_hash.get_mut(win){
-                main_window.set_visible(false);
-            }
-        }
+        // debug!("suspend");
+        let target_win = self.find_window(AppWindow::RegionSelectorCanvasWindow).unwrap();
+        target_win.set_visible(false);
     }
 
     fn do_image_capture(&mut self, rect: Bound2) {
-        //debug!("do_image_capture");
+        println!("do_image_capture");
         let image = self.capture_device.capture_image(rect);
         let user_dir = UserDirs::new();
         let mut desktop_dir = user_dir.desktop_dir().map_or(PathBuf::new(), |f| f.to_path_buf());

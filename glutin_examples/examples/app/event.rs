@@ -55,4 +55,6 @@ pub trait WindowEventHandler {
     fn set_visible(&mut self, visible: bool);
 
     fn send_user_event(&self, receiver:Target, event:Event);
+
+    fn on_focus_event(&mut self, focus:bool);
 }

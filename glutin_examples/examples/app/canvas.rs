@@ -30,6 +30,10 @@ impl Bound2 {
     pub fn get_height(&self) -> u32 {
         (self.max.1 - self.min.1) as u32
     }
+
+    pub fn empty(&self)->bool{
+        self.get_width() <= 0 || self.get_height() <= 0
+    }
 }
 
 impl Default for Bound2 {

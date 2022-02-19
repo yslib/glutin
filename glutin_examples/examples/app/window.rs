@@ -101,9 +101,13 @@ impl WindowEventHandler for MainWindow {
     #[allow(unused)]
     fn on_mouse_release_event(&mut self, data: &MouseData) {
         self.region_selector.set_visible(false);
-        let action = Action::DoImageCapture(self.region_selector.bound);
-        self.send_user_event(Target::Action, Event::DoAction(action));
-        self.request_redraw();
+        let bound = self.region_selector.bound;
+        if bound.empty() == false{
+            let action = Action::DoImageCapture(bound);
+            self.send_user_event(Target::Action, Event::DoAction(action));
+            self.request_redraw();
+        }
+        self.set_visible(false);
     }
 
     fn send_user_event(&self, receiver: Target, event: Event) {
@@ -121,6 +125,14 @@ impl WindowEventHandler for MainWindow {
         // unimplemented!();
     }
 
+    fn on_focus_event(&mut self, focus:bool){
+        if focus{
+            //
+        }else{
+            self.region_selector.set_visible(false);
+        }
+    }
+
     fn handle_redraw_event(&mut self) {
         self.graphics.clear((0.0, 0.0, 0.0, 0.5));
         self.region_selector.update(&*self.graphics);
@@ -128,7 +140,6 @@ impl WindowEventHandler for MainWindow {
     }
 
     fn on_user_event(&mut self, data: &UserEvent) {
-        println!("on_user_Event");
         match data.event {
             crate::app::event::Event::InvokeRegionSelector => {
                 self.set_visible(true);
@@ -138,7 +149,6 @@ impl WindowEventHandler for MainWindow {
     }
 
     fn set_visible(&mut self, visible: bool) {
-        self.region_selector.bound = Bound2::default();
         self.windowed_context.as_ref().map(|f| {
             //info!("set main window visible: {}", visible);
             f.window().set_visible(visible);
