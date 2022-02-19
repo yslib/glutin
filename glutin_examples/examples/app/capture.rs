@@ -2,7 +2,7 @@ use std::alloc::GlobalAlloc;
 
 use super::canvas::Bound2;
 use image::{GenericImage, GenericImageView, ImageBuffer, RgbImage, RgbaImage};
-use log::{info, warn};
+// use log::{info, warn};
 
 use windows::{
     core::*,

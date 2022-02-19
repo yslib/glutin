@@ -1,8 +1,10 @@
-#![windows_subsystem = "windows"]
+// #![windows_subsystem = "windows"]
 #![allow(unused)]
+// #![allow(unused)]
 mod app;
 mod misc;
 mod support;
+
 
 use app::{
     application::{Application, ApplicationBuilder},
