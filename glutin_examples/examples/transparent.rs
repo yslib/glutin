@@ -3,13 +3,10 @@
 // #![allow(unused)]
 mod app;
 mod misc;
-mod support;
 mod platform;
+mod support;
 
-use app::{
-    application::ApplicationBuilder,
-    event::UserEvent,
-};
+use app::{application::ApplicationBuilder, event::UserEvent};
 use glutin::event_loop::EventLoop;
 
 fn main() {

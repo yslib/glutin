@@ -1,6 +1,7 @@
 use crate::app::canvas::Bound2;
 use image::{
-    DynamicImage::ImageRgba8, GenericImage, GenericImageView, ImageBuffer, RgbImage, RgbaImage, Rgba,
+    DynamicImage::ImageRgba8, GenericImage, GenericImageView, ImageBuffer, RgbImage, Rgba,
+    RgbaImage,
 };
 
 use windows::{
@@ -13,7 +14,6 @@ use windows::{
 use std::ffi::c_void;
 use std::mem;
 
-
 pub struct CaptureImplWin {
     pub hwnd: HWND,
     pub hdc_src: HDC,
@@ -21,10 +21,12 @@ pub struct CaptureImplWin {
     pub bitmap: HBITMAP,
     pub old_bitmap: HGDIOBJ,
     pub bi: BITMAPINFOHEADER,
-    pub raw_data: Vec<u8>,
+    pub raw_data_bgra: Vec<u8>,
     pub bound: Bound2,
     pub bitmap_info: BITMAP,
 }
+
+unsafe impl Send for CaptureImplWin {}
 
 impl Drop for CaptureImplWin {
     fn drop(&mut self) {
@@ -35,7 +37,6 @@ impl Drop for CaptureImplWin {
         }
     }
 }
-
 
 /// This is the capture routine on windows using GDI
 impl CaptureImplWin {
@@ -80,7 +81,7 @@ impl CaptureImplWin {
                 bitmap,
                 old_bitmap,
                 bi,
-                raw_data,
+                raw_data_bgra: raw_data,
                 bound,
                 bitmap_info,
             }
@@ -99,7 +100,11 @@ impl CaptureImplWin {
         }
     }
 
-    pub fn capture_image(&mut self)->RgbaImage{
+    pub async fn capture_image_async(&mut self) -> RgbaImage {
+        self.capture_image()
+    }
+
+    pub fn capture_image(&mut self) -> RgbaImage {
         self.capture_image_raw();
         let img = ImageBuffer::from_fn(
             self.bitmap_info.bmWidth as u32,
@@ -109,17 +114,18 @@ impl CaptureImplWin {
                     * self.bitmap_info.bmWidth as u32
                     + x;
                 let ind = ind as usize;
-                unsafe{
-                    let ptr = self.raw_data.as_ptr().add(ind * 4);
-                    image::Rgba([*ptr.add(2), *ptr.add(1), *ptr, *ptr.add(3)])
+                unsafe {
+                    let ptr = self.raw_data_bgra.as_ptr().add(ind * 4);
+                    image::Rgba([*ptr.add(0), *ptr.add(1), *ptr.add(2), *ptr.add(3)])
                 }
             },
         );
         img
     }
 
+    ///
+    /// Capture the specified region of screen to data buffer
     pub fn capture_image_raw(&mut self) {
-        //->RgbaImage{
         let rect = self.bound.rect();
         unsafe {
             // transfer pixel data from screen
@@ -141,21 +147,26 @@ impl CaptureImplWin {
                 HBITMAP(self.bitmap.0),
                 0,
                 self.bitmap_info.bmHeight as u32,
-                self.raw_data.as_mut_ptr() as *mut c_void,
+                self.raw_data_bgra.as_mut_ptr() as *mut c_void,
                 &mut self.bi as *mut _ as *mut BITMAPINFO,
                 DIB_RGB_COLORS,
             );
 
+            for chunck in self.raw_data_bgra.chunks_mut(4) {
+                // convert bgra to rgba
+                let z = chunck[0];
+                chunck[0] = chunck[2];
+                chunck[2] = z;
+            }
         }
     }
 }
 
-
 #[allow(unused)]
-fn capture_img_from_screen_once(hwnd: HWND, rect:Bound2)->RgbaImage{
+fn capture_img_from_screen_once(hwnd: HWND, rect: Bound2) -> RgbaImage {
     let rect = rect.rect();
     unsafe {
-        let hdc_src = GetDC(HWND(0)); // the whole desktop
+        let hdc_src = GetDC(hwnd); // the whole desktop
         let hdc_mem = CreateCompatibleDC(hdc_src);
         let bitmap = CreateCompatibleBitmap(hdc_src, rect.2 as i32, rect.3 as i32);
         let old_bitmap = SelectObject(hdc_mem, bitmap);
@@ -216,8 +227,7 @@ fn capture_img_from_screen_once(hwnd: HWND, rect:Bound2)->RgbaImage{
             bitmap_info.bmWidth as u32,
             bitmap_info.bmHeight as u32,
             |x, y| {
-                let ind =
-                    (bitmap_info.bmHeight as u32 - 1u32 - y) * bitmap_info.bmWidth as u32 + x;
+                let ind = (bitmap_info.bmHeight as u32 - 1u32 - y) * bitmap_info.bmWidth as u32 + x;
                 let ind = ind as usize;
                 let ptr = raw_data.as_ptr().add(ind * 4);
                 image::Rgba([*ptr.add(2), *ptr.add(1), *ptr, *ptr.add(3)])

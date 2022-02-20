@@ -64,7 +64,7 @@ impl MainWindow {
             graphics,
             event_proxy,
             window_id,
-            invoke_type:Action::ImageCapture,
+            invoke_type: Action::ImageCapture,
             region_selector: RegionSelector::new(),
         }
     }
@@ -105,10 +105,10 @@ impl WindowEventHandler for MainWindow {
         self.region_selector.set_visible(false);
         let bound = self.region_selector.bound;
         if bound.empty() == false {
-            let action = match self.invoke_type{
-                Action::ImageCapture=>Action::DoImageCapture(bound),
-                Action::GifCapture=>Action::DoGifCapture(bound),
-                _=>{
+            let action = match self.invoke_type {
+                Action::ImageCapture => Action::DoImageCapture(bound),
+                Action::GifCapture => Action::DoGifCapture(bound),
+                _ => {
                     panic!("unexpected action");
                 }
             };
@@ -143,7 +143,7 @@ impl WindowEventHandler for MainWindow {
 
     fn handle_redraw_event(&mut self) {
         self.graphics.clear((0.0, 0.0, 0.0, 0.5));
-        self.region_selector.update(&*self.graphics);      // ???
+        self.region_selector.update(&*self.graphics); // ???
         self.swap_buffers();
     }
 

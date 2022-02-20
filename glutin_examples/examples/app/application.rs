@@ -184,7 +184,7 @@ impl ApplicationBuilder {
         window.entry(window_id).or_insert(Box::new(win));
     }
 
-    pub fn build(self, event_loop: &EventLoop<UserEvent>) -> Result<Application> {
+    pub fn build(self, event_loop: &EventLoop<UserEvent>) -> std::io::Result<Application> {
         let mut window_id_hashmap = WindowIDDHashMap::new();
         let mut window_hashmap = WindowHashMap::new();
         self.create_main_window(event_loop, &mut window_hashmap, &mut window_id_hashmap);
@@ -192,7 +192,7 @@ impl ApplicationBuilder {
         let app = Application {
             app_name: self.app_name.clone(),
             event_proxy: event_loop.create_proxy(),
-            capture_device: CaptureDevice::new(),
+            capture_device: CaptureDevice::new()?,
             keybinding_actions: self.reload_keybinding_actions(),
             windows: window_hashmap,
             windows_index: window_id_hashmap,
