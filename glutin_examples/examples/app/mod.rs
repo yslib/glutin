@@ -6,3 +6,4 @@ pub mod event;
 pub mod graphics;
 pub mod graphics_impl;
 pub mod window;
+pub mod config;

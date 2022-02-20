@@ -21,7 +21,7 @@ pub struct KeyInputData {
 
 #[derive(Debug, Clone, Copy)]
 pub enum Event {
-    InvokeRegionSelector,
+    InvokeRegionSelector(Action),
     DoAction(Action),
 }
 

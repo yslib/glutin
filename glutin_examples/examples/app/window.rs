@@ -38,6 +38,7 @@ pub struct MainWindow {
     pub graphics: Box<dyn Graphics>,
     pub event_proxy: EventLoopProxy<UserEvent>,
     pub region_selector: RegionSelector,
+    pub invoke_type: Action,
     window_id: Target,
 }
 
@@ -63,6 +64,7 @@ impl MainWindow {
             graphics,
             event_proxy,
             window_id,
+            invoke_type:Action::ImageCapture,
             region_selector: RegionSelector::new(),
         }
     }
@@ -103,7 +105,13 @@ impl WindowEventHandler for MainWindow {
         self.region_selector.set_visible(false);
         let bound = self.region_selector.bound;
         if bound.empty() == false {
-            let action = Action::DoImageCapture(bound);
+            let action = match self.invoke_type{
+                Action::ImageCapture=>Action::DoImageCapture(bound),
+                Action::GifCapture=>Action::DoGifCapture(bound),
+                _=>{
+                    panic!("unexpected action");
+                }
+            };
             self.send_user_event(Target::Action, Event::DoAction(action));
             self.request_redraw();
         }
@@ -135,14 +143,17 @@ impl WindowEventHandler for MainWindow {
 
     fn handle_redraw_event(&mut self) {
         self.graphics.clear((0.0, 0.0, 0.0, 0.5));
-        self.region_selector.update(&*self.graphics);
+        self.region_selector.update(&*self.graphics);      // ???
         self.swap_buffers();
     }
 
+    ///
+    /// This can receive user event whenever the window is visible or unvisible
     fn on_user_event(&mut self, data: &UserEvent) {
         match data.event {
-            crate::app::event::Event::InvokeRegionSelector => {
+            crate::app::event::Event::InvokeRegionSelector(action) => {
                 self.set_visible(true);
+                self.invoke_type = action;
             }
             _ => {}
         }

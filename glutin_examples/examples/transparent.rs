@@ -4,9 +4,10 @@
 mod app;
 mod misc;
 mod support;
+mod platform;
 
 use app::{
-    application::{Application, ApplicationBuilder},
+    application::ApplicationBuilder,
     event::UserEvent,
 };
 use glutin::event_loop::EventLoop;

@@ -107,6 +107,11 @@ impl ApplicationBuilder {
                 key: VirtualKeyCode::Key1,
             },
             KeyBinding {
+                action: Action::GifCapture,
+                mods: ModifiersState::CTRL | ModifiersState::ALT,
+                key: VirtualKeyCode::Key2,
+            },
+            KeyBinding {
                 action: Action::Suspend,
                 mods: ModifiersState::empty(),
                 key: VirtualKeyCode::Escape,
