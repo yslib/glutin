@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::io::Write;
 use std::ops::DerefMut;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
@@ -45,7 +46,7 @@ where
             Self::GifCapture => ctx.invoke_gif_capture(),
             Self::Suspend => ctx.suspend(),
             Self::DoGifCapture(rect) => {
-                ctx.do_gif_capture(*rect, 15, 2f64);
+                ctx.do_gif_capture(*rect, 15, 30f64);
             }
             Self::DoImageCapture(rect) => {
                 ctx.do_image_capture(*rect);
@@ -137,6 +138,7 @@ impl<'a> ActionContext for AppContext<'a> {
         // debug!("suspend");
         let target_win = self.find_window(AppWindow::RegionSelectorCanvasWindow).unwrap();
         target_win.set_visible(false);
+        self.capture_device.stop_capture();
     }
 
     ///
@@ -158,25 +160,22 @@ impl<'a> ActionContext for AppContext<'a> {
         let filename = format!("CAP_{}.gif", ts);
         let mut save_path = self.get_save_path();
         save_path.push(filename);
-        let cb = Box::new(move |mut rbga_data: Vec<RgbaImage>| {
-            let mut image = std::fs::File::create(save_path).unwrap();
-            let mut encoder = Encoder::new(&mut image);
-            for rgba in rbga_data {
-                //let mut fr = rgba.into_raw();
-                let mut frame =
-                    image::Frame::new(rgba);
-                encoder.encode_frame(frame).unwrap();
-            }
-        });
 
-        use std::sync::{Arc, Mutex};
-        self.capture_device.capture_gif_async(bound, fps, duration, cb, |encoder|{
-            let encoder = encoder.lock().unwrap();
-            println!("encode finished");
-        });
+        self.capture_device.capture_gif_async(
+            bound,
+            fps,
+            duration,
+            Box::new(|encode_data| {
+                let mut encode_data = encode_data;
+                let mut image = std::fs::File::create(save_path).unwrap();
+                image.write(&mut encode_data);
+            }),
+        );
     }
 
-    fn stop_gif_capture_and_save(&mut self) {}
+    fn stop_gif_capture_and_save(&mut self) {
+
+    }
 
     fn stop_gif_capture_and_drop(&mut self) {}
 }

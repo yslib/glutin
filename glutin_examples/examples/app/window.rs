@@ -107,7 +107,7 @@ impl WindowEventHandler for MainWindow {
         if bound.empty() == false {
             let action = match self.invoke_type {
                 Action::ImageCapture => Action::DoImageCapture(bound),
-                Action::GifCapture => Action::DoGifCapture(bound),
+                Action::GifCapture => {Action::DoGifCapture(bound)}
                 _ => {
                     panic!("unexpected action");
                 }
@@ -115,7 +115,6 @@ impl WindowEventHandler for MainWindow {
             self.send_user_event(Target::Action, Event::DoAction(action));
             self.request_redraw();
         }
-        self.set_visible(false);
     }
 
     fn send_user_event(&self, receiver: Target, event: Event) {
